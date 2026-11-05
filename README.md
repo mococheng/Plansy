@@ -33,7 +33,7 @@ To test a group alone, open the app in two or three browser tabs (use a private 
 A match ends the round and everyone gets **Your plan**:
 
 - **Meet time:** from the host's choice (Lunch 12:30, Dinner 7pm, Late 10pm), or the next quarter hour plus 30 minutes for "Now".
-- **Personal leave-by time:** from each person's own neighborhood. People who are OK with the subway get the faster of walking or transit, plus a 5-minute buffer.
+- **Personal leave-by time:** from where each person says they're starting. The host picks it when creating the group, friends pick it on the invite card (or in the lobby if they joined by code), and anyone can change it in the lobby or on their plan; the leave-by time updates right away. Exact GPS location works over HTTPS. People who are OK with the subway get the faster of walking or transit, plus a 5-minute buffer.
 - **Add to my calendar:** a standard calendar invite (.ics) with two reminders (get ready, then leave now) and a plain-language note an AI assistant can act on.
 - **Google Calendar** and **Email it to me:** for assistants that read your calendar or inbox.
 - **Send to my AI assistant:** opens the phone's share sheet with the plan and the invite file, so you can pick your assistant app if it appears there. Needs HTTPS (see Known limits).

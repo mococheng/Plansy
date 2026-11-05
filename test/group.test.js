@@ -147,6 +147,32 @@ test('on a match, each person gets their own leave-by and can share status', asy
   } finally { [a, b].forEach((s) => s.close()); }
 });
 
+test('changing your starting point updates the lobby and your leave-by', async () => {
+  const [a, b] = [connect(url), connect(url)];
+  try {
+    const meetAt = new Date(Date.now() + 3 * 3600e3).toISOString();
+    const { code } = await makeRoom(a, { meetAt });
+    await emit(b, 'join', { code, profile: profile('Ben', { hood: 'East Village', canTravel: false, maxWalkMin: 60 }) });
+    const moved = new Promise((res) => a.on('lobby', (s) => { const m = s.members.find((x) => x.id === 'Ben'); if (m && m.from === 'Midtown') res(m); }));
+    assert.ok((await emit(b, 'location', { location: hoods.Midtown, hood: 'Midtown' })).ok);
+    await moved;
+    assert.equal((await emit(b, 'location', { location: { lat: 'x', lng: 999 }, hood: 'Nowhere' })).ok, false, 'junk rejected');
+
+    const deck = once(a, 'deck'); await emit(a, 'start', {}); const d = await deck;
+    const firstPlan = once(b, 'plan');
+    a.emit('swipe', { placeId: d.deck[0].id, liked: true });
+    b.emit('swipe', { placeId: d.deck[0].id, liked: true });
+    const before = await firstPlan;
+    assert.equal(before.from, 'Midtown');
+
+    const after = once(b, 'plan');
+    await emit(b, 'location', { location: hoods.Williamsburg, hood: 'Williamsburg' });
+    const p = await after;
+    assert.equal(p.from, 'Williamsburg');
+    assert.notEqual(p.leaveBy, before.leaveBy, 'new start, new leave-by');
+  } finally { [a, b].forEach((s) => s.close()); }
+});
+
 test('public-internet limits: full groups and junk tastes', async () => {
   const host = connect(url);
   const extra = [];

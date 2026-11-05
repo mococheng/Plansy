@@ -123,6 +123,17 @@ function newCode() {
   return c;
 }
 
+// Where someone is starting from: a neighborhood or their exact GPS position.
+// Bad or out-of-range coordinates are dropped rather than trusted.
+function cleanLocation(p = {}) {
+  const l = p.location;
+  const ok = l && Number.isFinite(+l.lat) && Number.isFinite(+l.lng) && Math.abs(+l.lat) <= 90 && Math.abs(+l.lng) <= 180;
+  return {
+    location: ok ? { lat: +l.lat, lng: +l.lng } : null,
+    hood: ok && typeof p.hood === 'string' ? p.hood.slice(0, 40) : null,
+  };
+}
+
 function cleanProfile(p = {}) {
   return {
     id: String(p.id || Math.random().toString(36).slice(2)),
@@ -133,8 +144,7 @@ function cleanProfile(p = {}) {
     minTempF: Math.min(90, Math.max(0, +p.minTempF || 50)),
     okRain: !!p.okRain,
     diet: Array.isArray(p.diet) ? p.diet.filter((d) => F.DIETS.includes(d)) : [],
-    location: p.location && isFinite(p.location.lat) ? { lat: +p.location.lat, lng: +p.location.lng } : null,
-    hood: typeof p.hood === 'string' ? p.hood.slice(0, 40) : null,
+    ...cleanLocation(p),
     tastes: cleanTastes(p.tastes),
   };
 }
@@ -148,6 +158,7 @@ function lobbyState(room) {
       swiped: Object.keys(room.swipes[m.id] || {}).length,
       done: !!room.finished[m.id],
       status: room.statuses[m.id] || null,
+      from: m.hood || null,
     })),
   };
 }
@@ -303,6 +314,19 @@ io.on('connection', (socket) => {
     broadcastLobby(room);
     const ids = [...room.members.keys()];
     if (ids.every((id) => room.finished[id])) sendResults(room);
+  });
+
+  // Someone sets or changes where they're starting from. Before a match this moves the
+  // group's search center (on the next deal); after a match it recomputes their leave-by.
+  socket.on('location', (msg = {}, ack) => {
+    if (!room || !room.members.has(memberId)) return ack && ack({ ok: false });
+    const loc = cleanLocation(msg);
+    if (!loc.location) return ack && ack({ ok: false, error: 'bad location' });
+    Object.assign(room.members.get(memberId), loc);
+    touch(room);
+    broadcastLobby(room);
+    if (room.match) socket.emit('plan', T.personalPlan(room.members.get(memberId), room.match, room.meetAt));
+    ack && ack({ ok: true });
   });
 
   socket.on('results', () => room && sendResults(room, socket));

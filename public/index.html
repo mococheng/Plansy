@@ -151,6 +151,9 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
 .status-row button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
 .group-status { list-style: none; padding: 0; margin: 12px 0 0; }
 .group-status li { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.loc .row { gap: 8px; align-items: center; }
+.loc select { flex: 1; }
+.loc .hint { margin: 6px 0 0; font-size: 14px; }
 .leave-now { color: var(--err); font-weight: 600; }
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; display: none; z-index: 20; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -169,6 +172,7 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
       <input type="text" id="inv-name" maxlength="24" autocomplete="given-name" enterkeyhint="go">
       <p class="field" id="inv-diet-label">Any dietary needs? <span>Optional</span></p>
       <div class="chips" id="inv-diet" role="group" aria-labelledby="inv-diet-label"></div>
+      <div class="loc" id="inv-loc"></div>
       <button class="btn" id="inv-join">Join the group</button>
     </div>
   </div>
@@ -213,9 +217,7 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
     <p class="field" id="diet-label">Dietary needs</p>
     <div class="chips" id="diet" role="group" aria-labelledby="diet-label"></div>
 
-    <label class="field" for="hood">Where you are</label>
-    <select id="hood"></select>
-    <button class="linkbtn" id="gps">Use my exact location</button>
+    <div class="loc" id="prefs-loc"></div>
 
     <button class="btn" id="prefs-done">Save</button>
   </div>
@@ -228,6 +230,8 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
 
     <p class="field" id="when-label">When</p>
     <div class="seg" id="when" role="group" aria-labelledby="when-label"></div>
+
+    <div class="loc" id="create-loc"></div>
 
     <details class="testing">
       <summary>Testing options</summary>
@@ -254,6 +258,7 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
       <h2>Who's in</h2>
       <ul class="members" id="members"></ul>
     </section>
+    <div class="loc" id="lobby-loc"></div>
     <button class="btn" id="start">Start swiping</button>
     <p class="center"><button class="linkbtn" id="start-solo">Start on my own</button></p>
     <p class="muted center" id="waiting">Waiting for the host to start.</p>
@@ -283,6 +288,7 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
         <div><b id="p-leave"></b><small id="p-how"></small></div>
       </div>
       <p class="leave-now" id="p-now" style="display:none">Time to head out.</p>
+      <div class="loc" id="plan-loc"></div>
       <button class="btn" id="p-ics">Add to my calendar</button>
       <button class="btn ghost" id="p-assistant">Send to my AI assistant</button>
       <div class="links">
@@ -338,7 +344,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const socket = io();
 const DEFAULTS = {
   id: Math.random().toString(36).slice(2, 10), name: '', budget: 2, maxWalkMin: 15, canTravel: false,
-  minTempF: 50, okRain: false, diet: [], hood: 'East Village', location: null, tastes: {},
+  minTempF: 50, okRain: false, diet: [], hood: 'East Village', location: null, exact: false, locSet: false, tastes: {},
 };
 // Merge over defaults so older or partial saved profiles never break the app.
 let me = { ...DEFAULTS, ...(store.get('plansy.profile', null) || {}) };
@@ -416,6 +422,7 @@ async function renderInvite(code) {
   $('err-invite').textContent = '';
   $('inv-name').value = me.name;
   seg($('inv-diet'), DIET_OPTS, me.diet, (v) => { me.diet = v; save(); }, true);
+  renderLoc();
   show('s-invite');
   try {
     const info = await fetch(`/api/room/${encodeURIComponent(code)}`).then((r) => (r.ok ? r.json() : null));
@@ -432,6 +439,7 @@ async function renderInvite(code) {
   const go = () => {
     const name = $('inv-name').value.trim();
     if (!name) { $('err-invite').textContent = 'Add your name so the group knows who joined.'; $('inv-name').focus(); return; }
+    if (!me.locSet) { $('err-invite').textContent = 'Pick where you’re coming from so we can time your trip.'; $('inv-loc-sel').focus(); return; }
     me.name = name; save(); joinVia = 'link'; join(code);
   };
   $('inv-join').onclick = go;
@@ -440,15 +448,13 @@ async function renderInvite(code) {
 
 // ---------- Preferences ----------
 function renderPrefs() {
-  $('hood').innerHTML = Object.keys(hoods).map((h) => `<option>${esc(h)}</option>`).join('');
   $('name').value = me.name;
   seg($('budget'), [[1, '$'], [2, '$$'], [3, '$$$'], [4, '$$$$']], me.budget, (v) => { me.budget = v; save(); });
   seg($('diet'), DIET_OPTS, me.diet, (v) => { me.diet = v; save(); }, true);
   $('walk').value = me.maxWalkMin; $('temp').value = me.minTempF;
   $('travel').checked = me.canTravel; $('rain').checked = me.okRain;
-  $('hood').value = hoods[me.hood] ? me.hood : Object.keys(hoods)[0];
-  $('gps').textContent = me.hood === 'My location' ? 'Using your exact location' : 'Use my exact location';
   labels();
+  renderLoc();
 }
 const labels = () => { $('walkv').textContent = `${$('walk').value} min`; $('tempv').textContent = `${$('temp').value}°F`; };
 $('walk').oninput = () => { me.maxWalkMin = +$('walk').value; labels(); save(); };
@@ -456,13 +462,57 @@ $('temp').oninput = () => { me.minTempF = +$('temp').value; labels(); save(); };
 $('travel').onchange = () => { me.canTravel = $('travel').checked; save(); };
 $('rain').onchange = () => { me.okRain = $('rain').checked; save(); };
 $('name').oninput = () => { me.name = $('name').value.trim(); save(); };
-$('hood').onchange = () => { me.hood = $('hood').value; me.location = hoods[me.hood]; $('gps').textContent = 'Use my exact location'; save(); };
-$('gps').onclick = () => {
+
+// ---------- Starting location ----------
+// One picker, shown wherever it matters: the invite card, creating a group, the lobby,
+// your plan and preferences. Everyone's start sets the group's search area and their
+// own leave-by time, so it is asked up front instead of silently defaulting.
+const LOC_SLOTS = { 'inv-loc': 'Where are you coming from?', 'create-loc': 'Where are you coming from?',
+  'lobby-loc': 'You’re starting from', 'plan-loc': 'Leaving from', 'prefs-loc': 'Where you usually start' };
+function nearestHood(loc) {
+  let best = null, bestD = Infinity;
+  const k = Math.cos((loc.lat * Math.PI) / 180);
+  for (const [name, h] of Object.entries(hoods)) {
+    const d = (h.lat - loc.lat) ** 2 + ((h.lng - loc.lng) * k) ** 2;
+    if (d < bestD) { bestD = d; best = name; }
+  }
+  return best;
+}
+function setStart(location, hood, exact) {
+  me.location = location; me.hood = hood; me.exact = exact; me.locSet = true; save();
+  renderLoc();
+  if (room) socket.emit('location', { location, hood });
+}
+function useGps(btn) {
   if (!navigator.geolocation || !window.isSecureContext) { toast('Exact location needs a secure (https) link. Pick a neighborhood for now.'); return; }
+  btn.disabled = true; btn.textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(
-    (p) => { me.location = { lat: p.coords.latitude, lng: p.coords.longitude }; me.hood = 'My location'; $('gps').textContent = 'Using your exact location'; save(); },
-    () => toast('Location is blocked. Pick a neighborhood instead.'));
-};
+    (p) => {
+      const loc = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
+      const near = nearestHood(loc);
+      setStart(loc, near ? `near ${near}` : 'your location', true);
+      toast('Got it. Leave-by times will use your exact spot.');
+    },
+    (e) => {
+      renderLoc();
+      toast(e && e.code === 1 ? 'Location is blocked. Pick a neighborhood instead.' : "Couldn't find you. Pick a neighborhood instead.");
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60e3 });
+}
+function renderLoc() {
+  for (const [id, label] of Object.entries(LOC_SLOTS)) {
+    const el = $(id); if (!el) continue;
+    const opts = Object.keys(hoods).map((h) => `<option value="${esc(h)}"${!me.exact && me.hood === h ? ' selected' : ''}>${esc(h)}</option>`);
+    if (me.exact) opts.unshift(`<option value="" selected>📍 My exact location (${esc(me.hood || 'set')})</option>`);
+    else if (!me.locSet) opts.unshift('<option value="" selected disabled>Pick a neighborhood</option>');
+    el.innerHTML = `<label class="field" for="${id}-sel">${label}</label>
+      <div class="row"><select id="${id}-sel">${opts.join('')}</select></div>
+      <button type="button" class="linkbtn" id="${id}-gps">${me.exact ? 'Update my exact location' : 'Use my exact location'}</button>
+      ${!me.locSet && id === 'lobby-loc' ? '<p class="muted hint">Pick where you’re coming from so your leave-by time is right.</p>' : ''}`;
+    $(`${id}-sel`).onchange = (e) => { const h = e.target.value; if (hoods[h]) setStart(hoods[h], h, false); };
+    $(`${id}-gps`).onclick = (e) => useGps(e.target);
+  }
+}
 $('prefs-done').onclick = () => { save(); toast('Preferences saved'); renderHome(); };
 
 // ---------- Create ----------
@@ -475,8 +525,10 @@ function initCreate() {
     createOpts.wmode = v; $('wsim').style.display = v === 'sim' ? 'block' : 'none';
   });
   const tv = () => ($('simtempv').textContent = `${$('simtemp').value}°F`); tv(); $('simtemp').oninput = tv;
+  renderLoc();
 }
 $('create').onclick = () => {
+  if (!me.locSet) { toast('Pick where you’re coming from first.'); $('create-loc-sel').focus(); return; }
   const payload = { profile: me, categories: createOpts.categories };
   payload.hour = createOpts.when === 'now' ? new Date().getHours() : Math.floor(createOpts.when);
   payload.meetAt = meetAtFor(createOpts.when);
@@ -507,7 +559,8 @@ socket.on('lobby', (s) => {
   $('code').textContent = s.code;
   const host = s.hostId === me.id, solo = s.members.length < 2;
   $('members').innerHTML = s.members.map((m) =>
-    `<li><span>${esc(m.name)}${m.id === me.id ? ' (you)' : ''}</span><span class="muted">${m.id === s.hostId ? 'Host' : ''}</span></li>`).join('');
+    `<li><span>${esc(m.name)}${m.id === me.id ? ' (you)' : ''}</span><span class="muted">${[m.from ? `from ${esc(m.from)}` : '', m.id === s.hostId ? 'Host' : ''].filter(Boolean).join(' · ')}</span></li>`).join('');
+  if (!$('lobby-loc').contains(document.activeElement)) renderLoc();
   // Alone: inviting is the main job. Once someone joins: starting is.
   $('share').className = host && solo ? 'btn' : 'btn ghost';
   $('solo-hint').style.display = host && solo ? 'block' : 'none';
@@ -693,6 +746,8 @@ function renderPlan() {
   $('p-leave').textContent = p.mode === 'home' ? '—' : clock(p.leaveBy);
   $('p-how').textContent = p.mode === 'home' ? 'Watch from home' : `Leave by · ${howTxt(p)}`;
   $('p-dir').style.display = lastMatch.lat != null ? 'block' : 'none';
+  $('plan-loc').style.display = p.mode === 'home' ? 'none' : 'block';
+  if (!$('plan-loc').contains(document.activeElement)) renderLoc();
   $('p-now').style.display = p.mode !== 'home' && Date.now() >= Date.parse(p.leaveBy) ? 'block' : 'none';
   renderGroupStatus();
 }
@@ -707,7 +762,7 @@ function renderGroupStatus() {
 document.querySelectorAll('[data-status]').forEach((b) => (b.onclick = () => socket.emit('status', { state: b.dataset.status })));
 
 function others() { return (lastLobby ? lastLobby.members : []).filter((m) => m.id !== me.id).map((m) => m.name); }
-function mapsUrl(place) { return place.lat != null ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}&travelmode=${myPlan && myPlan.mode === 'transit' ? 'transit' : 'walking'}` : ''; }
+function mapsUrl(place) { return place.lat != null ? `https://www.google.com/maps/dir/?api=1${me.location ? `&origin=${me.location.lat},${me.location.lng}` : ''}&destination=${place.lat},${place.lng}&travelmode=${myPlan && myPlan.mode === 'transit' ? 'transit' : 'walking'}` : ''; }
 
 // Plain-language note any calendar- or inbox-reading assistant can act on.
 function planNote() {
@@ -830,7 +885,9 @@ $('again').onclick = () => { history.replaceState(null, '', '/'); room = null; d
 // ---------- Boot ----------
 (async () => {
   try { hoods = await fetch('/api/hoods').then((r) => r.json()); } catch { hoods = {}; }
-  if (!me.location) me.location = hoods[me.hood] || Object.values(hoods)[0] || null;
+  if (me.hood === 'My location' && me.location) { me.exact = true; me.locSet = true; me.hood = nearestHood(me.location) ? `near ${nearestHood(me.location)}` : 'your location'; }
+  if (!me.exact && !hoods[me.hood]) me.hood = Object.keys(hoods)[0];
+  if (!me.location) me.location = hoods[me.hood] || null;
   save();
   const code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
   if (code) {
