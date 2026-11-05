@@ -70,42 +70,44 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
 .members { list-style: none; padding: 0; margin: 0; }
 .members li { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
 
-/* Deck */
-.rules { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
-.rules span, .rules button { background: var(--chip); padding: 4px 10px; border-radius: 8px; font: 14px var(--body); color: var(--ink); border: 0; min-height: 30px; }
-.rules button { cursor: pointer; font-weight: 600; }
-.rules .note { background: var(--ink); color: var(--bg); }
-.stack { position: relative; height: clamp(320px, 50dvh, 400px); margin: 4px 0 16px; }
-.stub {
-  position: absolute; inset: 0; background: var(--stub); border-radius: 18px; padding: 22px 22px 18px;
-  box-shadow: 0 10px 30px rgba(27,31,59,.14); touch-action: pan-y; user-select: none;
-  display: flex; flex-direction: column; will-change: transform;
-}
-.stub .tear { margin: auto -22px 14px; border-top: 3px dotted var(--line); position: relative; }
-.stub .tear::before, .stub .tear::after {
-  content: ''; position: absolute; top: -14px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg);
-}
-.stub .tear::before { left: -12px; } .stub .tear::after { right: -12px; }
-.stub .emoji { font-size: 72px; line-height: 1; margin-bottom: 14px; }
-.stub .name { font: 800 32px/1.05 var(--display); letter-spacing: -0.02em; }
-.stub .kind { color: var(--muted); margin-top: 6px; }
-.stub .why { margin-top: 14px; font-weight: 600; }
-.stub .facts { display: flex; justify-content: space-between; font-weight: 600; }
-.stub .facts small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
-.stub.behind { transform: scale(.95) translateY(14px); opacity: .7; }
-.stub .verdict {
-  position: absolute; top: 26px; padding: 4px 12px; border: 4px solid; border-radius: 10px;
-  font: 800 28px var(--display); opacity: 0; transform: rotate(-12deg);
-}
-.stub .verdict.y { left: 20px; color: var(--yes); } .stub .verdict.n { right: 20px; color: var(--hot-btn); transform: rotate(12deg); }
-.actions { display: flex; gap: 14px; }
-.actions button {
-  flex: 1; min-height: 56px; padding: 14px; border-radius: 999px; border: 3px solid var(--ink); background: transparent;
-  color: var(--ink); font: 800 19px var(--display); cursor: pointer;
-}
-.actions .like { background: var(--yes); border-color: var(--yes); color: #fff; }
-.people { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; color: var(--muted); font-size: 14px; margin-top: 12px; }
-.people b { color: var(--ink); font-weight: 600; }
+/* Time picker */
+.timeseg { display: flex; flex-wrap: wrap; gap: 8px; }
+.timeseg .seg { flex: 1 1 210px; flex-wrap: nowrap; }
+.timeseg input[type=time] { flex: 1 1 130px; min-height: 48px; padding: 8px 12px; font: 600 17px var(--body); color: var(--ink); background: var(--stub); border: 2px solid var(--field); border-radius: 12px; min-width: 0; }
+
+/* Archetypes */
+.vibes button { flex: 1 1 calc(50% - 8px); text-align: left; border-radius: 14px; padding: 10px 12px; }
+.vibes button small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+.vibes button[aria-pressed=true] small { color: inherit; opacity: .8; }
+.vibe-line { color: var(--muted); margin: 6px 0 0; }
+
+/* Plansy's pick */
+.eyebrow { font: 600 13px var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; }
+.loading { text-align: center; padding: 64px 10px; }
+.loading .dots { font: 800 40px var(--display); letter-spacing: .1em; }
+@media (prefers-reduced-motion: no-preference) { .loading .dots { animation: pulse 1.2s ease-in-out infinite; } @keyframes pulse { 50% { opacity: .3; } } }
+.pick { background: var(--stub); border-radius: 18px; padding: 22px 22px 18px; box-shadow: 0 10px 30px rgba(27,31,59,.14); margin: 8px 0 14px; }
+.pick .emoji { font-size: 60px; line-height: 1; margin-bottom: 10px; }
+.pick .name { font: 800 30px/1.05 var(--display); letter-spacing: -0.02em; }
+.pick .kind { color: var(--muted); margin-top: 4px; }
+.pick .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pick .tags span { background: var(--chip); border-radius: 8px; padding: 3px 9px; font-size: 14px; }
+.pick .why { margin: 14px 0 0; font-weight: 600; }
+.pick .tear { margin: 16px -22px 14px; border-top: 3px dotted var(--line); position: relative; }
+.pick .tear::before, .pick .tear::after { content: ''; position: absolute; top: -14px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); }
+.pick .tear::before { left: -12px; } .pick .tear::after { right: -12px; }
+.pick .facts { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
+.pick .facts small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.headsup { margin: 0 0 10px; padding-left: 20px; color: var(--muted); }
+.react { display: flex; gap: 10px; }
+.react button { flex: 1; min-height: 52px; border-radius: 999px; border: 3px solid var(--ink); background: transparent; color: var(--ink); font: 800 17px var(--display); cursor: pointer; }
+.react button.yes[aria-pressed=true] { background: var(--yes); border-color: var(--yes); color: #fff; }
+.react button.no[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+#pk-reasons { margin-top: 10px; }
+.alt { border-top: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+.alt .e { font-size: 30px; grid-row: span 3; }
+.alt b { font-family: var(--display); font-size: 18px; }
+.alt .linkbtn { grid-column: 2; justify-self: start; padding: 6px 0; min-height: 40px; }
 .empty { text-align: center; padding: 48px 10px; }
 
 /* Match */
@@ -126,19 +128,6 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
 }
 
 /* Results */
-.rank { list-style: none; padding: 0; margin: 0; }
-.rank li { display: flex; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
-.rank .e { font-size: 34px; }
-.rank b { display: block; font-family: var(--display); font-size: 19px; }
-.ticket { background: var(--ink); color: var(--bg); border-radius: 18px; padding: 22px 22px 18px; margin-top: 20px; }
-.ticket .t-name { font: 800 28px/1.05 var(--display); }
-.ticket .t-label { opacity: .75; font-size: 14px; }
-.ticket .tear { border-top: 3px dotted rgba(234,242,255,.35); margin: 16px -22px; position: relative; }
-.ticket .tear::before, .ticket .tear::after { content: ''; position: absolute; top: -14px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); }
-.ticket .tear::before { left: -12px; } .ticket .tear::after { right: -12px; }
-.ticket dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 14px; }
-.ticket dt { opacity: .75; } .ticket dd { margin: 0; font-weight: 600; }
-.ticket .btn { margin-top: 4px; }
 .plan { background: var(--stub); border-radius: 18px; padding: 20px; margin: 14px 0 6px; box-shadow: 0 6px 20px rgba(27,31,59,.08); }
 .plan .times { display: flex; gap: 18px; margin: 8px 0 4px; }
 .plan .times b { display: block; font: 800 26px/1.1 var(--display); white-space: nowrap; }
@@ -167,11 +156,12 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
     <div class="invite">
       <p class="err" id="err-invite" role="alert"></p>
       <h1 id="inv-title">You're invited to plan tonight</h1>
-      <p class="muted">Swipe on a few spots. When everyone says yes, it's a match.</p>
+      <p class="muted">Tell Plansy when you can go and where you're coming from. It picks one plan that works for everyone.</p>
       <label class="field" for="inv-name">Your name</label>
       <input type="text" id="inv-name" maxlength="24" autocomplete="given-name" enterkeyhint="go">
       <p class="field" id="inv-diet-label">Any dietary needs? <span>Optional</span></p>
       <div class="chips" id="inv-diet" role="group" aria-labelledby="inv-diet-label"></div>
+      <div class="time" id="inv-time"></div>
       <div class="loc" id="inv-loc"></div>
       <button class="btn" id="inv-join">Join the group</button>
     </div>
@@ -180,7 +170,7 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
   <!-- Home -->
   <div class="screen" id="s-home">
     <h1 id="home-title">Plansy</h1>
-    <p class="muted">Swipe with friends. Match on what to do tonight.</p>
+    <p class="muted">Tell it your vibe and your time. Plansy finds the plan that works for everyone.</p>
     <p class="err" id="err-home" role="alert"></p>
     <div id="home-name-wrap">
       <label class="field" for="home-name">Your name</label>
@@ -224,18 +214,17 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
 
   <!-- Create -->
   <div class="screen" id="s-create">
-    <h2>What's on the table?</h2>
-    <p class="muted">Mix categories when the group hasn't decided what kind of plan it is.</p>
-    <div class="chips" id="cats" role="group" aria-label="Categories"></div>
+    <h2>What's the vibe?</h2>
+    <p class="muted">Pick one or more. Plansy finds the one plan that fits everyone's time, place and limits.</p>
+    <div class="chips vibes" id="cats" role="group" aria-label="Vibes"></div>
 
-    <p class="field" id="when-label">When</p>
-    <div class="seg" id="when" role="group" aria-labelledby="when-label"></div>
+    <div class="time" id="create-time"></div>
 
     <div class="loc" id="create-loc"></div>
 
     <details class="testing">
       <summary>Testing options</summary>
-      <p class="muted">Pretend the weather is different to see how the deck changes.</p>
+      <p class="muted">Pretend the weather is different to see how the plan changes.</p>
       <div class="seg" id="wmode" role="group" aria-label="Weather"></div>
       <div id="wsim" style="display:none">
         <label class="field" for="simtemp">Simulated temperature <span id="simtempv"></span></label>
@@ -252,29 +241,57 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
   <div class="screen" id="s-lobby">
     <p class="muted">Group code</p>
     <div class="code" id="code"></div>
+    <p class="vibe-line" id="vibe-line"></p>
     <button class="btn" id="share">Send invite link</button>
     <p class="muted" id="solo-hint">Plansy works best with 2 to 6 people.</p>
     <section>
       <h2>Who's in</h2>
       <ul class="members" id="members"></ul>
     </section>
+    <div class="time" id="lobby-time"></div>
     <div class="loc" id="lobby-loc"></div>
-    <button class="btn" id="start">Start swiping</button>
-    <p class="center"><button class="linkbtn" id="start-solo">Start on my own</button></p>
-    <p class="muted center" id="waiting">Waiting for the host to start.</p>
+    <button class="btn" id="start">Plan it</button>
+    <p class="center"><button class="linkbtn" id="start-solo">Plan it just for me</button></p>
+    <p class="muted center" id="waiting">The organizer will ask Plansy for a plan once everyone's in.</p>
   </div>
 
-  <!-- Swipe -->
-  <div class="screen" id="s-swipe">
-    <h2>Tonight's options</h2>
-    <div class="rules" id="rules"></div>
-    <div class="stack" id="stack"></div>
-    <div class="actions" id="actions">
-      <button class="pass" id="pass">Pass</button>
-      <button class="like" id="like">I'm in</button>
+  <!-- Plansy's pick -->
+  <div class="screen" id="s-pick">
+    <div class="loading" id="pk-loading" hidden>
+      <div class="dots" aria-hidden="true">• • •</div>
+      <h2>Planning for everyone</h2>
+      <p class="muted">Checking each person's time, trip and limits.</p>
     </div>
-    <div class="people" id="people" aria-hidden="true"></div>
-    <p class="sr" id="live" aria-live="polite"></p>
+    <div id="pk-none" hidden>
+      <div class="empty"><h2>Nothing fits everyone</h2>
+        <p class="muted" id="pk-none-msg"></p>
+        <button class="btn" id="pk-loosen">Loosen it</button>
+        <p class="muted" id="pk-none-wait">Waiting for the organizer to loosen it.</p>
+      </div>
+    </div>
+    <div id="pk-body" hidden>
+      <p class="eyebrow" id="pk-source">Plansy's pick</p>
+      <article class="pick" id="pk-card" aria-live="polite"></article>
+      <p class="muted" id="pk-summary"></p>
+      <ul class="headsup" id="pk-heads"></ul>
+      <p class="field" id="pk-q">Does this work for you?</p>
+      <div class="react" role="group" aria-labelledby="pk-q">
+        <button type="button" class="yes" id="pk-yes" aria-pressed="false">Works for me</button>
+        <button type="button" class="no" id="pk-no" aria-pressed="false">Doesn't work</button>
+      </div>
+      <div class="chips" id="pk-reasons" role="group" aria-label="Why not" hidden></div>
+      <section>
+        <h2 style="font-size:20px">Who's in</h2>
+        <ul class="members" id="pk-people"></ul>
+      </section>
+      <button class="btn" id="pk-lock">Lock it in</button>
+      <button class="btn ghost" id="pk-replan">Re-plan</button>
+      <p class="muted center" id="pk-wait">The organizer locks in the plan.</p>
+      <section id="pk-alts-wrap">
+        <h2 style="font-size:20px">Backups</h2>
+        <div id="pk-alts"></div>
+      </section>
+    </div>
   </div>
 
   <!-- Results -->
@@ -304,25 +321,13 @@ details.testing summary { min-height: 48px; display: flex; align-items: center; 
       </div>
       <ul class="group-status" id="group-status"></ul>
     </div>
-    <ul class="rank" id="rank"></ul>
-    <div class="ticket" id="ticket" style="display:none">
-      <div class="t-label">Plansy ticket</div>
-      <div class="t-name" id="t-name"></div>
-      <div class="tear"></div>
-      <dl>
-        <dt>Budget</dt><dd id="t-price"></dd>
-        <dt>Into</dt><dd id="t-likes"></dd>
-        <dt>Gets there</dt><dd id="t-reach"></dd>
-      </dl>
-      <button class="btn" id="share-ticket">Share my ticket</button>
-    </div>
     <button class="btn ghost" id="again">Plan something else</button>
   </div>
 </main>
 
 <div class="overlay" id="match" role="dialog" aria-modal="true" aria-labelledby="m-name">
   <div class="matchcard">
-    <div class="stamp">It's a match</div>
+    <div class="stamp">It's set</div>
     <div style="font-size:64px" id="m-emoji" aria-hidden="true"></div>
     <h2 id="m-name"></h2>
     <p class="muted" id="m-meta"></p>
@@ -342,15 +347,24 @@ const store = {
 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const socket = io();
+// A sensible first guess for "when": 7pm, or an hour from now if it's already evening.
+function defaultHhmm() {
+  const d = new Date(); if (d.getHours() < 18) return '19:00';
+  d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15 + 60);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 const DEFAULTS = {
   id: Math.random().toString(36).slice(2, 10), name: '', budget: 2, maxWalkMin: 15, canTravel: false,
-  minTempF: 50, okRain: false, diet: [], hood: 'East Village', location: null, exact: false, locSet: false, tastes: {},
+  minTempF: 50, okRain: false, diet: [], hood: 'East Village', location: null, exact: false, locSet: false,
+  time: { mode: 'arrive', hhmm: defaultHhmm() },
 };
 // Merge over defaults so older or partial saved profiles never break the app.
 let me = { ...DEFAULTS, ...(store.get('plansy.profile', null) || {}) };
 if (!Array.isArray(me.diet)) me.diet = [];
+if (!me.time || !/^\d\d:\d\d$/.test(me.time.hhmm || '')) me.time = { ...DEFAULTS.time };
+delete me.tastes;
 let hoods = {};
-let room = null, hostId = null, deck = [], idx = 0, lastMatch = null, myTicket = null, joinVia = 'code';
+let room = null, hostId = null, lastMatch = null, joinVia = 'code', archetypes = [], proposal = null;
 
 function show(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === id));
@@ -361,16 +375,17 @@ function save() { store.set('plansy.profile', me); }
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const priceTxt = (p) => (p ? '$'.repeat(p) : 'Free');
-const hourTxt = (h) => { const x = ((h % 24) + 24) % 24; return `${x % 12 || 12}${x < 12 ? 'am' : 'pm'}`; };
 const appUrl = (params) => `${location.origin}/?${new URLSearchParams(params)}`;
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-// Chosen time today (or tomorrow if it already passed). "Now" lets the server pick next quarter hour + 30.
-function meetAtFor(when) {
-  if (when === 'now') return null;
-  const d = new Date(); d.setHours(Math.floor(when), Math.round((when % 1) * 60), 0, 0);
+// A clock time today (or tomorrow if it already passed) as an ISO time the server can compare.
+function isoFor(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(); d.setHours(h, m, 0, 0);
   if (d.getTime() < Date.now() - 15 * 60e3) d.setDate(d.getDate() + 1);
   return d.toISOString();
 }
+const timePref = () => ({ mode: me.time.mode, at: isoFor(me.time.hhmm) });
+const profileOut = () => ({ ...me, timePref: timePref() });
 
 async function share(kind, text, url) {
   socket.emit('shared', { kind });
@@ -422,7 +437,7 @@ async function renderInvite(code) {
   $('err-invite').textContent = '';
   $('inv-name').value = me.name;
   seg($('inv-diet'), DIET_OPTS, me.diet, (v) => { me.diet = v; save(); }, true);
-  renderLoc();
+  renderLoc(); renderTime();
   show('s-invite');
   try {
     const info = await fetch(`/api/room/${encodeURIComponent(code)}`).then((r) => (r.ok ? r.json() : null));
@@ -515,23 +530,53 @@ function renderLoc() {
 }
 $('prefs-done').onclick = () => { save(); toast('Preferences saved'); renderHome(); };
 
+// ---------- Timing ----------
+// Everyone says when they can go: the time they want to arrive, or the time they can leave.
+const TIME_SLOTS = { 'inv-time': 'When can you go?', 'create-time': 'When can you go?', 'lobby-time': 'Your timing' };
+function renderTime() {
+  for (const [id, label] of Object.entries(TIME_SLOTS)) {
+    const el = $(id); if (!el) continue;
+    el.innerHTML = `<p class="field" id="${id}-label">${label}</p>
+      <div class="timeseg"><div class="seg" id="${id}-mode" role="group" aria-labelledby="${id}-label"></div>
+      <input type="time" id="${id}-at" value="${me.time.hhmm}" step="300" aria-label="${me.time.mode === 'arrive' ? 'Arrive at' : 'Leave at'} time"></div>`;
+    seg($(`${id}-mode`), [['arrive', 'Arrive at'], ['depart', 'Leave at']], me.time.mode, (v) => setTime({ mode: v }));
+    $(`${id}-at`).onchange = (e) => { if (e.target.value) setTime({ hhmm: e.target.value }); };
+  }
+}
+function setTime(patch) {
+  me.time = { ...me.time, ...patch }; save();
+  renderTime();
+  if (room) socket.emit('time', { timePref: timePref() }, () => {});
+}
+const timeTxt = (t) => t ? `${t.mode === 'arrive' ? 'arrive' : 'leave'} ${clock(t.at)}` : '';
+
 // ---------- Create ----------
-let createOpts = { categories: ['eat', 'drink', 'do'], when: 'now', wmode: 'live' };
+let createOpts = { archetypes: ['catchup', 'dinner', 'drinks'], wmode: 'live' };
+function renderVibes() {
+  const el = $('cats'); el.innerHTML = '';
+  archetypes.forEach((a) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('aria-pressed', createOpts.archetypes.includes(a.id));
+    b.innerHTML = `${a.emoji} ${esc(a.label)}<small>${esc(a.blurb)}</small>`;
+    b.onclick = () => {
+      const on = createOpts.archetypes.includes(a.id);
+      createOpts.archetypes = on ? createOpts.archetypes.filter((x) => x !== a.id) : [...createOpts.archetypes, a.id];
+      $('create').disabled = !createOpts.archetypes.length; renderVibes();
+    };
+    el.appendChild(b);
+  });
+}
 function initCreate() {
-  seg($('cats'), [['eat', '🍜 Eat'], ['drink', '🍸 Drink'], ['do', '🎳 Do'], ['watch', '🍿 Watch'], ['go', '🎟️ Go']],
-    createOpts.categories, (v) => { createOpts.categories = v; $('create').disabled = !v.length; }, true);
-  seg($('when'), [['now', 'Now'], [12.5, 'Lunch 12:30'], [19, 'Dinner 7pm'], [22, 'Late 10pm']], createOpts.when, (v) => (createOpts.when = v));
+  renderVibes();
   seg($('wmode'), [['live', 'Live forecast'], ['sim', 'Simulate']], createOpts.wmode, (v) => {
     createOpts.wmode = v; $('wsim').style.display = v === 'sim' ? 'block' : 'none';
   });
   const tv = () => ($('simtempv').textContent = `${$('simtemp').value}°F`); tv(); $('simtemp').oninput = tv;
-  renderLoc();
+  renderLoc(); renderTime();
 }
 $('create').onclick = () => {
   if (!me.locSet) { toast('Pick where you’re coming from first.'); $('create-loc-sel').focus(); return; }
-  const payload = { profile: me, categories: createOpts.categories };
-  payload.hour = createOpts.when === 'now' ? new Date().getHours() : Math.floor(createOpts.when);
-  payload.meetAt = meetAtFor(createOpts.when);
+  const payload = { profile: profileOut(), archetypes: createOpts.archetypes, tzOffset: new Date().getTimezoneOffset() };
   if (createOpts.wmode === 'sim') payload.weatherOverride = { tempF: +$('simtemp').value, raining: $('simrain').checked, source: 'simulated' };
   socket.emit('create', payload, (res) => {
     if (!res.ok) return toast(res.error);
@@ -541,7 +586,7 @@ $('create').onclick = () => {
 };
 
 function join(code) {
-  socket.emit('join', { code, profile: me, via: joinVia }, (res) => {
+  socket.emit('join', { code, profile: profileOut(), via: joinVia }, (res) => {
     if (!res.ok) {
       history.replaceState(null, '', '/'); renderHome();
       $('err-home').textContent = res.error === 'full' ? 'That group is full (12 people).' : "That group code didn't work. It may have expired. Ask for a new link.";
@@ -549,6 +594,7 @@ function join(code) {
     }
     room = res.code; history.replaceState(null, '', `?room=${room}`);
     if (res.status === 'lobby') show('s-lobby');
+    else if (res.status !== 'locked') show('s-pick');
   });
 }
 
@@ -558,166 +604,121 @@ socket.on('lobby', (s) => {
   lastLobby = s; hostId = s.hostId;
   $('code').textContent = s.code;
   const host = s.hostId === me.id, solo = s.members.length < 2;
+  const vibeName = (id) => { const a = archetypes.find((x) => x.id === id); return a ? `${a.emoji} ${a.label}` : id; };
+  $('vibe-line').textContent = (s.archetypes || []).map(vibeName).join(' · ');
   $('members').innerHTML = s.members.map((m) =>
-    `<li><span>${esc(m.name)}${m.id === me.id ? ' (you)' : ''}</span><span class="muted">${[m.from ? `from ${esc(m.from)}` : '', m.id === s.hostId ? 'Host' : ''].filter(Boolean).join(' · ')}</span></li>`).join('');
+    `<li><span>${esc(m.name)}${m.id === me.id ? ' (you)' : ''}</span><span class="muted">${[m.from ? `from ${esc(m.from)}` : '', esc(timeTxt(m.timePref)), m.id === s.hostId ? 'Host' : ''].filter(Boolean).join(' · ')}</span></li>`).join('');
   if (!$('lobby-loc').contains(document.activeElement)) renderLoc();
-  // Alone: inviting is the main job. Once someone joins: starting is.
+  if (!$('lobby-time').contains(document.activeElement)) renderTime();
+  // Alone: inviting is the main job. Once someone joins: planning is.
   $('share').className = host && solo ? 'btn' : 'btn ghost';
   $('solo-hint').style.display = host && solo ? 'block' : 'none';
   $('start').style.display = host && !solo && s.status === 'lobby' ? 'block' : 'none';
-  $('start').textContent = `Start swiping with ${s.members.length}`;
+  $('start').textContent = `Plan it for ${s.members.length}`;
+  $('start-solo').textContent = 'Plan it just for me';
   $('start-solo').parentElement.style.display = host && solo && s.status === 'lobby' ? 'block' : 'none';
   $('waiting').style.display = host ? 'none' : 'block';
-  renderPeople();
+  if (s.status === 'planning') showPlanning();
+  renderPickPeople();
   renderGroupStatus();
 });
 $('share').onclick = () => share('invite', 'Help pick tonight\'s plan. Tap to join:', appUrl({ room }));
-const start = () => socket.emit('start', {}, (r) => { if (!r.ok) toast(r.error); });
+const start = () => { showPlanning(); socket.emit('plan', {}, (r) => { if (!r.ok) toast(r.error); }); };
 $('start').onclick = start; $('start-solo').onclick = start;
 
-// ---------- Swipe ----------
-let rulesOpen = false, lastDeckMsg = null;
+// ---------- Plansy's pick ----------
 const kindTxt = (p) => p.category === 'watch' ? `${cap(p.subtype)} to stream at home` : `${cap(p.subtype)} in ${p.hood}${p.outdoor ? ', outdoors' : ''}`;
+const REASONS = ['Too far', 'Too pricey', 'Bad timing', 'Not my vibe'];
+const isHost = () => hostId === me.id;
+const myReaction = () => { const m = lastLobby && lastLobby.members.find((x) => x.id === me.id); return m && m.reaction; };
+const travelTxt = (p) => p.how === 'home' ? 'From home' : `${p.travelMin} min ${p.how === 'transit' ? 'by subway' : 'walk'}`;
 
-socket.on('deck', (d) => {
-  lastDeckMsg = d; deck = d.deck;
-  // Resume after a refresh or late join: skip cards already swiped.
-  const done = d.swiped || {};
-  idx = 0; while (deck[idx] && done[deck[idx].id] !== undefined) idx++;
-  renderRules(); show('s-swipe'); render();
-});
-
-function renderRules() {
-  const d = lastDeckMsg; if (!d) return;
-  const g = d.group, w = d.weather;
-  const all = [
-    ...(d.relaxed || []).map((t) => ({ t, note: true })),
-    // A "Stretched ..." note already states the new limit, so don't repeat it.
-    ...((d.relaxed || []).some((n) => n.includes('budget')) ? [] : [{ t: `Up to ${'$'.repeat(g.budget)}` }]),
-    ...((d.relaxed || []).some((n) => n.includes('walk')) ? [] : [{ t: g.allTravel ? 'Subway OK' : `${g.maxWalkMin} min walk` }]),
-    { t: d.outdoorOk ? `${w.tempF}°F, outdoor OK` : `${w.tempF}°F${w.raining ? ', rain' : ''}, indoors only` },
-    { t: `Open at ${hourTxt(d.hour)}` },
-    ...g.diet.map((x) => ({ t: cap(x) })),
-  ];
-  if (w.source === 'simulated') all.push({ t: 'Simulated weather' });
-  const shown = rulesOpen ? all : all.slice(0, 3);
-  $('rules').innerHTML = shown.map((c) => `<span class="${c.note ? 'note' : ''}">${esc(c.t)}</span>`).join('') +
-    (all.length > 3 ? `<button type="button" id="more-rules" aria-expanded="${rulesOpen}">${rulesOpen ? 'Less' : `+${all.length - 3}`}</button>` : '');
-  const more = $('more-rules'); if (more) more.onclick = () => { rulesOpen = !rulesOpen; renderRules(); };
+function showPlanning() {
+  show('s-pick');
+  $('pk-loading').hidden = false; $('pk-body').hidden = true; $('pk-none').hidden = true;
 }
 
-function card(p, behind) {
-  const el = document.createElement('div');
-  el.className = 'stub' + (behind ? ' behind' : '');
-  const where = p.walkMin != null ? `${p.walkMin} min walk` : 'At home';
-  const hours = p.hours ? `Till ${hourTxt(p.hours.close)}` : 'Anytime';
-  const why = p.hours ? `Open till ${hourTxt(p.hours.close)}${p.walkMin != null ? ` · ${p.walkMin} min walk` : ''}` : 'Watch from anywhere';
-  if (!behind) { el.tabIndex = 0; el.setAttribute('role', 'group'); el.setAttribute('aria-label', `${p.name}. ${kindTxt(p)}. ${priceTxt(p.price)}, ${where}.`); }
-  else el.setAttribute('aria-hidden', 'true');
-  el.innerHTML = `
-    <div class="verdict y" aria-hidden="true">IN</div><div class="verdict n" aria-hidden="true">PASS</div>
-    <div class="emoji" aria-hidden="true">${p.emoji}</div>
-    <div class="name">${esc(p.name)}</div>
-    <div class="kind">${esc(kindTxt(p))}</div>
-    <div class="why">${esc(why)}</div>
+socket.on('proposal', (p) => {
+  proposal = p; show('s-pick');
+  $('pk-loading').hidden = true;
+  $('pk-none').hidden = !p.none; $('pk-body').hidden = !!p.none;
+  if (p.none) {
+    const b = p.blocker;
+    $('pk-none-msg').textContent = b ? b.prompt : "Your group's limits rule out everything right now.";
+    $('pk-loosen').hidden = !(b && isHost()); $('pk-none-wait').hidden = !b || isHost();
+    if (b) { $('pk-loosen').textContent = b.action; $('pk-loosen').onclick = () => { showPlanning(); socket.emit('loosen', { what: b.what }, () => {}); }; }
+    return;
+  }
+  renderPick();
+});
+
+function renderPick() {
+  const p = proposal; if (!p || p.none) return;
+  const c = p.pick.place, mine = c.people.find((x) => x.id === me.id) || c.people[0];
+  const vibe = (id) => { const a = archetypes.find((x) => x.id === id); return a ? `${a.emoji} ${a.label}` : id; };
+  $('pk-source').textContent = p.source === 'ai' ? 'Plansy AI picked' : 'Plansy picked';
+  $('pk-card').innerHTML = `
+    <div class="emoji" aria-hidden="true">${c.emoji}</div>
+    <div class="name">${esc(c.name)}</div>
+    <div class="kind">${esc(kindTxt(c))}</div>
+    <div class="tags">${c.archetypes.map((a) => `<span>${esc(vibe(a))}</span>`).join('')}${(p.relaxed || []).map((t) => `<span>${esc(t)}</span>`).join('')}</div>
+    <p class="why">${esc(p.pick.why)}</p>
     <div class="tear"></div>
     <div class="facts">
-      <div>${priceTxt(p.price)}<small>Price</small></div>
-      <div>${where}<small>Distance</small></div>
-      <div>★ ${p.rating.toFixed(1)}<small>${hours}</small></div>
+      <div>${clock(c.meetAt)}<small>Meet</small></div>
+      <div>${mine.how === 'home' ? '—' : clock(mine.leaveBy)}<small>${mine.how === 'home' ? 'From home' : `You leave · ${travelTxt(mine)}`}</small></div>
+      <div>${priceTxt(c.price)} · ★ ${c.rating.toFixed(1)}<small>Price · rating</small></div>
     </div>`;
-  return el;
+  $('pk-summary').textContent = p.summary || '';
+  $('pk-heads').innerHTML = (p.headsUp || []).map((h) => `<li>${esc(h)}</li>`).join('');
+  $('pk-alts').innerHTML = p.backups.map((b) => `<div class="alt"><span class="e" aria-hidden="true">${b.place.emoji}</span>
+    <b>${esc(b.place.name)}</b><span class="muted">${esc(kindTxt(b.place))} · meet ${clock(b.place.meetAt)}</span><span>${esc(b.why)}</span>
+    ${isHost() ? `<button type="button" class="linkbtn" data-choose="${esc(b.id)}">Lock this in instead</button>` : ''}</div>`).join('');
+  $('pk-alts-wrap').hidden = !p.backups.length;
+  $('pk-alts').querySelectorAll('[data-choose]').forEach((btn) => (btn.onclick = () => choose(btn.dataset.choose)));
+  renderReact(); renderPickPeople();
 }
 
-function render() {
-  const stack = $('stack'); stack.innerHTML = '';
-  const left = deck.length - idx;
-  $('actions').style.display = left > 0 ? 'flex' : 'none';
-  if (!deck.length) {
-    const b = lastDeckMsg && lastDeckMsg.blocker, host = hostId === me.id;
-    stack.innerHTML = `<div class="empty"><h2>Nothing fits everyone</h2>
-      <p class="muted">${b ? esc(b.prompt) : 'Your group\'s limits rule out everything right now.'}</p>
-      ${b && host ? `<button class="btn" id="loosen">${esc(b.action)}</button>` : ''}
-      ${b && !host ? '<p class="muted">Waiting for the host to loosen it.</p>' : ''}
-      <button class="btn ghost" id="back-lobby">Back to home</button></div>`;
-    if ($('loosen')) $('loosen').onclick = () => socket.emit('loosen', { what: b.what }, () => {});
-    $('back-lobby').onclick = () => { history.replaceState(null, '', '/'); room = null; renderHome(); };
-    return;
-  }
-  if (left <= 0) {
-    stack.innerHTML = `<div class="empty"><h2>You're through the deck</h2><p class="muted">Waiting for everyone else to finish.</p></div>`;
-    socket.emit('results');
-    renderPeople();
-    return;
-  }
-  if (deck[idx + 1]) stack.appendChild(card(deck[idx + 1], true));
-  const top = card(deck[idx]); stack.appendChild(top); drag(top);
-  $('live').textContent = `Card ${idx + 1} of ${deck.length}: ${deck[idx].name}`;
-  renderPeople();
+function renderReact() {
+  const r = myReaction();
+  $('pk-yes').setAttribute('aria-pressed', !!r && r.ok);
+  $('pk-no').setAttribute('aria-pressed', !!r && !r.ok || !$('pk-reasons').hidden);
+  seg($('pk-reasons'), REASONS.map((x) => [x, x]), r && !r.ok ? r.reason : null, (v) => socket.emit('react', { ok: false, reason: v }));
 }
+$('pk-yes').onclick = () => { $('pk-reasons').hidden = true; socket.emit('react', { ok: true }); };
+$('pk-no').onclick = () => { $('pk-reasons').hidden = false; renderReact(); $('pk-reasons').querySelector('button').focus(); };
 
-// Everyone's progress, so nobody wonders who the group is waiting on.
-function renderPeople() {
-  const s = lastLobby; if (!s || !deck.length) { $('people').innerHTML = ''; return; }
-  $('people').innerHTML = s.members.map((m) => {
-    const n = m.id === me.id ? Math.min(idx, deck.length) : Math.min(m.swiped, deck.length);
-    return `<span><b>${esc(m.id === me.id ? 'You' : m.name)}</b> ${n}/${deck.length}</span>`;
+// Who's said what about the pick. The organizer sees this before locking in.
+function renderPickPeople() {
+  const s = lastLobby; if (!s || !proposal || proposal.none) return;
+  const c = proposal.pick.place;
+  $('pk-people').innerHTML = s.members.map((m) => {
+    const r = m.reaction, row = c.people.find((x) => x.id === m.id);
+    const said = r ? (r.ok ? '✓ Works' : `✗ ${r.reason || "Doesn't work"}`) : 'No answer yet';
+    return `<li><span>${esc(m.id === me.id ? 'You' : m.name)}<br><small class="muted">${row ? esc(travelTxt(row)) : ''}${row && row.how !== 'home' ? ` · leave ${clock(row.leaveBy)}` : ''}</small></span><span class="${r && !r.ok ? 'err' : 'muted'}">${esc(said)}</span></li>`;
   }).join('');
+  const host = isHost(), objections = s.members.filter((m) => m.reaction && !m.reaction.ok).length;
+  $('pk-lock').hidden = !host; $('pk-replan').hidden = !host; $('pk-wait').hidden = host;
+  $('pk-replan').textContent = objections ? `Re-plan around ${objections === 1 ? '1 objection' : `${objections} objections`}` : 'Re-plan';
+  if ($('s-pick').classList.contains('on') && !$('pk-body').hidden) renderReactState();
 }
-
-function decide(liked) {
-  const p = deck[idx]; if (!p) return;
-  socket.emit('swipe', { placeId: p.id, liked });
-  idx++; render();
-  const top = $('stack').querySelector('.stub:not(.behind)'); if (top) top.focus({ preventScroll: true });
-}
-
-function drag(el) {
-  let x0 = null, dx = 0, gone = false;
-  const yes = el.querySelector('.verdict.y'), no = el.querySelector('.verdict.n');
-  el.addEventListener('pointerdown', (e) => { x0 = e.clientX; dx = 0; el.setPointerCapture(e.pointerId); el.style.transition = 'none'; });
-  el.addEventListener('pointermove', (e) => {
-    if (x0 == null) return;
-    dx = e.clientX - x0;
-    el.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
-    yes.style.opacity = Math.max(0, dx / 100); no.style.opacity = Math.max(0, -dx / 100);
-  });
-  const end = () => {
-    if (x0 == null || gone) return; x0 = null;
-    const liked = dx > 0; // capture the direction before anything resets it
-    if (Math.abs(dx) > 90) {
-      gone = true;
-      if (reduceMotion) return decide(liked);
-      el.style.transition = 'transform .22s ease';
-      el.style.transform = `translateX(${liked ? 600 : -600}px) rotate(${dx / 8}deg)`;
-      setTimeout(() => decide(liked), 180);
-    } else {
-      el.style.transition = 'transform .2s ease';
-      el.style.transform = ''; yes.style.opacity = 0; no.style.opacity = 0;
-    }
-  };
-  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
-}
-$('like').onclick = () => decide(true);
-$('pass').onclick = () => decide(false);
+function renderReactState() { const r = myReaction(); $('pk-yes').setAttribute('aria-pressed', !!r && r.ok); }
+const choose = (id) => socket.emit('choose', { id }, (r) => { if (!r.ok) toast("Couldn't lock that in. Try again."); });
+$('pk-lock').onclick = () => proposal && choose(proposal.pick.id);
+$('pk-replan').onclick = () => { showPlanning(); socket.emit('plan', {}, (r) => { if (!r.ok) toast(r.error); }); };
 document.addEventListener('keydown', (e) => {
-  if ($('match').classList.contains('on')) { if (e.key === 'Escape') closeMatch(); return; }
-  if (!$('s-swipe').classList.contains('on')) return;
-  if (e.key === 'ArrowRight') decide(true);
-  if (e.key === 'ArrowLeft') decide(false);
+  if ($('match').classList.contains('on') && e.key === 'Escape') closeMatch();
 });
-socket.on('tastes', (t) => { if (t) { me.tastes = t; save(); } });
 
 // ---------- Match ----------
 function openMatch() { $('match').classList.add('on'); $('app').inert = true; $('m-share').focus(); }
-function closeMatch() { $('match').classList.remove('on'); $('app').inert = false; const t = $('stack').querySelector('.stub:not(.behind)'); if (t) t.focus(); }
-socket.on('match', ({ place, yes, of }) => {
+function closeMatch() { $('match').classList.remove('on'); $('app').inert = false; showResults(); }
+socket.on('locked', ({ place, rejoin }) => {
   lastMatch = place;
   $('m-emoji').textContent = place.emoji; $('m-name').textContent = place.name;
-  const votes = yes && of && yes < of ? ` · ${yes} of ${of} said yes` : '';
-  $('m-meta').textContent = kindTxt(place) + votes;
+  $('m-meta').textContent = kindTxt(place);
   $('m-plan').textContent = myPlan ? planLine(myPlan) : '';
-  openMatch();
+  if (rejoin) showResults(); else openMatch();
 });
 $('m-keep').onclick = closeMatch;
 $('m-share').onclick = () => {
@@ -858,33 +859,21 @@ $('p-email').onclick = () => {
   location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(planNote())}`;
 };
 
-// ---------- Results ----------
-socket.on('results', (r) => {
-  if (deck.length - idx > 0 && !r.match) return; // no match yet: wait until this person is done
-  $('res-title').textContent = r.match ? `You're going to ${r.match.name}` : 'No match this round';
-  $('res-sub').textContent = r.match ? 'Here is how everything stacked up.' : 'These had the most yeses. Pick one, or plan another round.';
-  $('rank').innerHTML = r.ranking.map((x) =>
-    `<li><span class="e" aria-hidden="true">${x.place.emoji}</span><span><b>${esc(x.place.name)}</b><span class="muted">${x.likes} of ${x.of} in · ${priceTxt(x.place.price)}</span></span></li>`).join('')
-    || '<li class="muted">Nobody said yes this round.</li>';
-  if (r.match) lastMatch = r.match;
+// ---------- Locked plan ----------
+function showResults() {
+  if (!lastMatch) return;
+  $('res-title').textContent = `You're going to ${lastMatch.name}`;
+  const why = proposal && !proposal.none && [proposal.pick, ...proposal.backups].find((x) => x.id === lastMatch.id);
+  $('res-sub').textContent = why ? why.why : '';
   renderPlan();
-  const v = r.vibes.find((x) => x.id === me.id);
-  myTicket = v && v.card;
-  $('ticket').style.display = myTicket ? 'block' : 'none';
-  if (myTicket) {
-    $('t-name').textContent = myTicket.name;
-    $('t-price').textContent = myTicket.price;
-    $('t-likes').textContent = myTicket.likes.map(cap).join(', ');
-    $('t-reach').textContent = cap(myTicket.reach);
-  }
   show('s-results');
-});
-$('share-ticket').onclick = () => share('ticket', `${myTicket.text}. What's yours?`, appUrl({ ref: 'ticket' }));
-$('again').onclick = () => { history.replaceState(null, '', '/'); room = null; deck = []; myPlan = null; renderHome(); };
+}
+$('again').onclick = () => { history.replaceState(null, '', '/'); room = null; proposal = null; lastMatch = null; myPlan = null; renderHome(); };
 
 // ---------- Boot ----------
 (async () => {
   try { hoods = await fetch('/api/hoods').then((r) => r.json()); } catch { hoods = {}; }
+  try { archetypes = await fetch('/api/archetypes').then((r) => r.json()); } catch { archetypes = []; }
   if (me.hood === 'My location' && me.location) { me.exact = true; me.locSet = true; me.hood = nearestHood(me.location) ? `near ${nearestHood(me.location)}` : 'your location'; }
   if (!me.exact && !hoods[me.hood]) me.hood = Object.keys(hoods)[0];
   if (!me.location) me.location = hoods[me.hood] || null;
@@ -896,7 +885,7 @@ $('again').onclick = () => { history.replaceState(null, '', '/'); room = null; d
   }
   renderHome();
 })();
-socket.on('connect', () => { if (room && me.name) socket.emit('join', { code: room, profile: me }, () => {}); });
+socket.on('connect', () => { if (room && me.name) socket.emit('join', { code: room, profile: profileOut() }, () => {}); });
 </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 # Plansy (local prototype)
 
-Swipe with friends and match on what to do: eat, drink, do, watch or go.
-Everyone's profile (budget, walk limit, weather tolerance, diet, location) merges into one group filter.
+Tell it the vibe and when you can go. Plansy's AI planner picks the one plan that works for the whole group.
+Everyone's profile (budget, walk limit, weather tolerance, diet, starting point, timing) merges into one set of limits, and every option is checked against each person's real trip before the AI chooses.
 
 ## Run it
 
@@ -22,17 +22,23 @@ To test a group alone, open the app in two or three browser tabs (use a private 
 ## Try it
 
 1. Enter your name and tap **Start a group**. Adjust budget, walking, weather and diet under **Edit my preferences** (optional).
-2. Pick categories. Under **Testing options** you can simulate cold or rainy weather.
-3. Tap **Send invite link**. A friend opening the link sees "Mo invited you to plan tonight", types a name and taps once to join.
-4. The host taps **Start swiping**. Swipe right or tap **I'm in**; swipe left or tap **Pass**. Arrow keys work on a laptop. Everyone's progress shows under the card, and people can join late.
-5. A match needs every yes in a pair, and all but one yes in a group of 3 or more. **Share the plan** sends "We're going to X" to the group chat. After the deck, everyone gets the ranked picks and a shareable ticket.
-6. If nothing fits, the host gets one button that loosens the filter that cut the most (walk, then budget). Dietary needs are never loosened; the app offers more categories instead.
+2. Pick one or more **vibes**: Low-key catch-up, Dinner out, Drinks, Big night out, Get moving, Culture fix or Night in. Say **when you can go** (Arrive at or Leave at, with a time picker) and **where you're coming from**. Under **Testing options** you can simulate cold or rainy weather.
+3. Tap **Send invite link**. A friend opening the link types a name, their own time and starting point, and taps once to join.
+4. The organizer taps **Plan it**. Plansy checks every place that fits the vibes and everyone's limits, works out a meet time and each person's leave-by, and the AI picks **one plan plus two backups**, saying why in plain words.
+5. Everyone taps **Works for me** or **Doesn't work** (Too far, Too pricey, Bad timing, Not my vibe). The organizer sees the answers and taps **Lock it in**, **Lock this in instead** on a backup, or **Re-plan around N objections**.
+6. If nothing fits, the organizer gets one button that loosens the limit that cut the most (walk, then budget). Dietary needs are never loosened.
+
+## How the AI planner works
+
+- **Plansy does the arithmetic; Claude does the judgment.** `lib/planner.js` builds every workable option: for each place, each person's travel time (walk, or subway if they're OK with it), a meet time, and each person's leave-by time. A meet time is late enough for everyone who set **Leave at** to get there, and as close as possible to the earliest **Arrive at** time. Anyone who would arrive more than 15 minutes off their time, or would have to leave right now, is listed as an issue.
+- **Claude picks.** `lib/ai.js` sends the vibes, everyone's timing and limits, and the checked options to Claude, which returns one pick and two backups as structured JSON. It can only choose from the offered options. On a re-plan it also gets the objections ("Ben said it's too far").
+- **Fallback.** With no API key, or if the call fails, times out or is declined, Plansy picks by rating, timing and travel instead and moves off any place people objected to. The pick screen says "Plansy picked" instead of "Plansy AI picked".
 
 ## Getting everyone there on time
 
-A match ends the round and everyone gets **Your plan**:
+Locking in a plan ends the round and everyone gets **Your plan**:
 
-- **Meet time:** from the host's choice (Lunch 12:30, Dinner 7pm, Late 10pm), or the next quarter hour plus 30 minutes for "Now".
+- **Meet time:** from the planner, based on everyone's Arrive at / Leave at times. If nobody sets a time, the next quarter hour plus 30 minutes.
 - **Personal leave-by time:** from where each person says they're starting. The host picks it when creating the group, friends pick it on the invite card (or in the lobby if they joined by code), and anyone can change it in the lobby or on their plan; the leave-by time updates right away. Exact GPS location works over HTTPS. People who are OK with the subway get the faster of walking or transit, plus a 5-minute buffer.
 - **Add to my calendar:** a standard calendar invite (.ics) with two reminders (get ready, then leave now) and a plain-language note an AI assistant can act on.
 - **Google Calendar** and **Email it to me:** for assistants that read your calendar or inbox.
@@ -43,24 +49,23 @@ A match ends the round and everyone gets **Your plan**:
 
 Neither assistant documents a way for other apps to push data to it; both read the services you connect, such as email and calendar. So Plansy delivers the plan to those places. Connect your calendar or Gmail to your assistant and it will see the Plansy event and its note.
 
-## How the group filter works
+## How the group limits work
 
 | Setting | Group rule |
 |---|---|
 | Budget | Lowest budget in the group |
-| Walk | Shortest walk limit, from the midpoint of everyone's locations. If everyone is OK with the subway, radius is 5 km |
+| Walk | Shortest walk limit, from the midpoint of everyone's starting points. If everyone is OK with the subway, radius is 5 km |
 | Weather | Live forecast from Open-Meteo (free, no key). Outdoor places drop out if it's colder than anyone's limit, or raining and anyone minds rain |
 | Diet | Every member's restriction applies to the whole group |
-| Hours | Only places open at the chosen time |
-| Thin deck | Under 8 cards: walk limit doubles, then budget goes up one step. A dark chip says what was stretched |
-| Streaming | Only in late-night decks (or Watch-only), at most 2 of 12 cards |
-| Order | Rating, plus tastes learned from swipes, minus distance. 12 cards per deck |
+| Hours | Only places open at the planned meet time |
+| Vibes | Only places that fit one of the organizer's vibes. Streaming only counts as Night in |
+| Too few options | Under 3: walk limit doubles, then budget goes up one step, and the pick says what was stretched |
 
-The logic lives in `lib/filter.js` as plain functions.
+The logic lives in `lib/filter.js`, `lib/planner.js` and `lib/archetypes.js` as plain functions.
 
 ## Adoption funnel
 
-Every key step is written to `logs/events.jsonl` (created, joined by link or code, started, match, results, shared). Open `http://localhost:3000/api/stats` to see the last 7 days, led by **weekly decided groups**: groups where 2+ people joined and reached a match or results.
+Every key step is written to `logs/events.jsonl` (created, joined by link or code, planned, locked, shared). Open `http://localhost:3000/api/stats` to see the last 7 days, led by **weekly decided groups**: groups where 2+ people joined and locked in a plan.
 
 ## Tests
 
@@ -68,7 +73,7 @@ Every key step is written to `logs/events.jsonl` (created, joined by link or cod
 npm test
 ```
 
-Covers each filter rule, deck balancing and loosening, and real multi-person rooms over sockets: matching, late joining, reconnecting, a host dropping while sharing the invite, and the stats funnel.
+Covers each limit, the planner's timing rules, the AI request shape and its fallback, and real multi-person rooms over sockets: planning, objecting, re-planning, locking in, late joining, a host dropping while sharing the invite, and the stats funnel. Tests never call the AI.
 
 ## Put it on the internet
 
@@ -82,7 +87,7 @@ cloudflared tunnel --url http://localhost:3000
 
 It prints an `https://….trycloudflare.com` link anyone can open. The link changes every time and only works while your laptop is on.
 
-**Always on (recommended): Railway, Hobby plan $5/month.** Put this folder in a GitHub repo, then in Railway choose New Project → Deploy from GitHub repo. Under Settings → Networking, choose Generate Domain. Under Variables, add `STATS_KEY` with any long random value.
+**Always on (recommended): Railway, Hobby plan $5/month.** Put this folder in a GitHub repo, then in Railway choose New Project → Deploy from GitHub repo. Under Settings → Networking, choose Generate Domain. Under Variables, add `STATS_KEY` with any long random value, and `ANTHROPIC_API_KEY` to turn on the AI planner.
 
 **Free option: Render.** New → Blueprint, pick the repo (it reads `render.yaml`). The free plan sleeps after 15 idle minutes and takes about a minute to wake, so the first person to open an invite waits.
 
@@ -90,6 +95,10 @@ It prints an `https://….trycloudflare.com` link anyone can open. The link chan
 
 | Variable | Default | What it does |
 |---|---|---|
+| `ANTHROPIC_API_KEY` | none | Turns on the AI planner. Without it, Plansy uses its rule-based pick |
+| `PLANNER_MODEL` | `claude-opus-5-5` | Claude model the planner uses |
+| `PLANNER_EFFORT` | `low` | How hard Claude thinks (`low`, `medium`, `high`). Higher is slower; people are waiting on the pick |
+| `PLANNER_TIMEOUT_MS` | 30000 | Give up on the AI and use the rule-based pick after this long |
 | `STATS_KEY` | none | Locks `/api/stats`; open it as `/api/stats?key=YOUR_KEY` |
 | `MAX_ROOMS` | 500 | Most groups open at once |
 | `MAX_MEMBERS` | 12 | Most people per group |
@@ -99,6 +108,7 @@ It prints an `https://….trycloudflare.com` link anyone can open. The link chan
 ## Known limits of this prototype
 
 - **Demo data:** 44 fictional NYC places and 8 fictional streaming titles in `data/places.js`.
+- **AI cost and wait:** each Plan it or Re-plan is one Claude request (a few seconds). Check your Anthropic usage before sharing widely.
 - **Exact location:** phone GPS only works over HTTPS, so on Wi-Fi testing it falls back to the neighborhood picker. Use a tunnel like `ngrok http 3000` or deploy to get HTTPS.
 - **Share sheet:** Android only offers "Send to my AI assistant" over HTTPS. On plain Wi-Fi testing, use the calendar invite or "Email it to me".
 - **Memory only:** groups are lost when the server restarts or redeploys, and expire after 30 minutes of inactivity. On hosts with temporary disks (Render free, Railway without a volume) the stats log also resets on each deploy.

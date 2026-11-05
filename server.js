@@ -9,12 +9,14 @@ const express = require('express');
 const { Server } = require('socket.io');
 const F = require('./lib/filter');
 const T = require('./lib/timing');
+const P = require('./lib/planner');
+const AI = require('./lib/ai');
+const ARCH = require('./lib/archetypes');
 const { places, hoods } = require('./data/places');
 
 const PORT = process.env.PORT || 3000;
 const OFFLINE = process.env.OFFLINE === '1';          // skip live weather calls (used by tests)
 const ROOM_TTL_MS = (+process.env.ROOM_TTL_MIN || 30) * 60 * 1000;
-const DECK_SIZE = 12;
 const LOG_FILE = process.env.EVENT_LOG || path.join(__dirname, 'logs', 'events.jsonl');
 // Limits for running on the public internet.
 const MAX_ROOMS = +process.env.MAX_ROOMS || 500;
@@ -42,7 +44,7 @@ function funnel() {
   const joiners = {};
   by('joined').forEach((e) => (joiners[e.room] = (joiners[e.room] || 1) + 1));
   const twoPlus = [...created].filter((r) => (joiners[r] || 1) >= 2);
-  const decided = new Set([...by('match'), ...by('results')].map((e) => e.room));
+  const decided = new Set([...by('locked'), ...by('match'), ...by('results')].map((e) => e.room));
   const decidedGroups = twoPlus.filter((r) => decided.has(r));
   return {
     window: 'last 7 days',
@@ -50,7 +52,7 @@ function funnel() {
     funnel: {
       created: created.size,
       twoPlusJoined: twoPlus.length,
-      started: new Set(by('started').map((e) => e.room)).size,
+      planned: new Set([...by('planned'), ...by('started')].map((e) => e.room)).size,
       decided: decidedGroups.length,
       shared: by('shared').length,
     },
@@ -65,7 +67,8 @@ app.set('trust proxy', 1); // hosts like Render and Railway sit behind a proxy
 app.disable('x-powered-by');
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/hoods', (_req, res) => res.json(hoods));
-app.get('/api/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, places: places.length }));
+app.get('/api/archetypes', (_req, res) => res.json(ARCH.publicList()));
+app.get('/api/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, places: places.length, ai: AI.enabled() }));
 app.get('/api/stats', (req, res) => {
   if (STATS_KEY && req.query.key !== STATS_KEY) return res.status(404).end();
   res.json(funnel());
@@ -93,12 +96,6 @@ function allowCreate(ip) {
   return true;
 }
 const clientIp = (socket) => String(socket.handshake.headers['x-forwarded-for'] || socket.handshake.address || '').split(',')[0].trim();
-function cleanTastes(t) {
-  if (!t || typeof t !== 'object') return {};
-  return Object.fromEntries(Object.entries(t).slice(0, 60)
-    .filter(([k, v]) => typeof k === 'string' && k.length <= 30 && Number.isFinite(v))
-    .map(([k, v]) => [k, Math.max(-2, Math.min(3, v))]));
-}
 
 // Live weather from Open-Meteo (free, no key). Falls back to a mild default.
 async function getWeather(center) {
@@ -145,20 +142,20 @@ function cleanProfile(p = {}) {
     okRain: !!p.okRain,
     diet: Array.isArray(p.diet) ? p.diet.filter((d) => F.DIETS.includes(d)) : [],
     ...cleanLocation(p),
-    tastes: cleanTastes(p.tastes),
+    timePref: P.cleanTimePref(p.timePref),
   };
 }
 
 function lobbyState(room) {
   return {
-    code: room.code, status: room.status, hostId: room.hostId, categories: room.categories,
-    deckSize: room.deck.length, needed: F.yesNeeded(room.members.size), meetAt: room.meetAt,
+    code: room.code, status: room.status, hostId: room.hostId, archetypes: room.archetypes,
+    aiOn: AI.enabled(),
     members: [...room.members.values()].map((m) => ({
       id: m.id, name: m.name,
-      swiped: Object.keys(room.swipes[m.id] || {}).length,
-      done: !!room.finished[m.id],
-      status: room.statuses[m.id] || null,
       from: m.hood || null,
+      timePref: m.timePref || null,
+      reaction: room.reactions[m.id] || null,
+      status: room.statuses[m.id] || null,
     })),
   };
 }
@@ -173,46 +170,55 @@ setInterval(() => {
   for (const [code, r] of rooms) if (now - r.lastActive > ROOM_TTL_MS) rooms.delete(code);
 }, 60 * 1000).unref();
 
-async function dealDeck(room) {
+// Build checked options, let the AI choose (or the rules, as a fallback), and show everyone.
+const findCand = (room, id) => room.candidates && room.candidates.find((c) => c.id === id);
+function proposalPayload(room) {
+  const pr = room.proposal;
+  if (!pr) return null;
+  if (pr.none) return { ...pr, round: room.round };
+  const withPlace = (x) => ({ ...x, place: findCand(room, x.id) });
+  return { ...pr, pick: withPlace(pr.pick), backups: pr.backups.map(withPlace), round: room.round };
+}
+
+async function runPlan(room, feedback) {
   const members = [...room.members.values()];
   const center = F.mergeProfiles(members).center;
   room.weather = room.weatherOverride || room.weather || (await getWeather(center));
-  room.planHour = room.hour ?? new Date().getHours();
-  const built = F.buildDeck(places, members, {
-    weather: room.weather, hour: room.planHour, categories: room.categories, size: DECK_SIZE, relax: room.relax,
+  const built = P.candidates(places, members, {
+    archetypes: room.archetypes, weather: room.weather, tzOffset: room.tzOffset, relax: room.relax,
   });
-  Object.assign(room, built);
-  room.blocker = built.deck.length ? null : F.topBlocker(built.removed, built.group, room.categories);
-  room.swipes = Object.fromEntries(members.map((m) => [m.id, {}]));
-  room.finished = {};
-  room.match = null;
-  room.resultsSent = false;
-  room.status = 'swiping';
-}
-
-function deckPayload(r) {
-  return {
-    deck: r.deck,
-    swiped: {},
-    weather: r.weather, outdoorOk: r.outdoorOk, hour: r.planHour, relaxed: r.relaxed, blocker: r.blocker,
-    hostId: r.hostId,
-    group: { budget: r.group.budget, maxWalkMin: r.group.maxWalkMin, allTravel: r.group.allTravel,
-      diet: r.group.diet, center: r.group.center },
-  };
-}
-
-function checkMatch(room) {
-  if (room.match) return;
-  const ids = [...room.members.keys()];
-  const match = F.findMatch(ids, room.swipes, room.deck, F.yesNeeded(ids.length));
-  if (match) {
-    room.match = match; room.status = 'matched';
-    const yes = ids.filter((id) => room.swipes[id][match.id] === true).length;
-    io.to(room.code).emit('match', { place: match, yes, of: ids.length });
-    sendPlans(room);
-    sendResults(room); // a match ends the round: everyone goes to their plan
-    logEvent('match', { room: room.code, members: ids.length, yes, place: match.id });
+  room.candidates = built.list;
+  room.relaxed = built.relaxed;
+  room.reactions = {};
+  room.round = (room.round || 0) + 1;
+  if (!built.list.length) {
+    room.proposal = { none: true, blocker: F.topBlocker(built.removed, built.group, ['eat', 'drink', 'do', 'watch', 'go']), relaxed: built.relaxed };
+    room.status = 'proposed';
+    return;
   }
+  const input = { members, archetypes: built.archetypes, list: built.list, group: built.group, weather: room.weather, feedback, tzOffset: room.tzOffset };
+  const avoid = feedback.length && room.proposal && !room.proposal.none ? [room.proposal.pick.id] : [];
+  const choice = (await AI.aiPick(input)) || P.rulePick(built.list, avoid);
+  room.proposal = { ...choice, relaxed: built.relaxed, weather: room.weather };
+  room.status = 'proposed';
+}
+
+// What people said about the last pick, in words the AI can act on.
+function feedbackFor(room) {
+  const pick = room.proposal && !room.proposal.none && findCand(room, room.proposal.pick.id);
+  return Object.entries(room.reactions).filter(([, r]) => !r.ok).map(([id, r]) => {
+    const m = room.members.get(id);
+    return `${m ? m.name : 'Someone'} said ${pick ? pick.name : 'the last pick'} doesn't work: ${r.reason || 'no reason given'}`;
+  });
+}
+
+function lock(room, id) {
+  const c = findCand(room, id);
+  if (!c) return false;
+  room.match = c;
+  room.meetAt = c.meetAt;
+  room.status = 'locked';
+  return true;
 }
 
 io.on('connection', (socket) => {
@@ -223,8 +229,7 @@ io.on('connection', (socket) => {
     room = r;
     memberId = profile.id;
     const existing = r.members.get(profile.id);
-    r.members.set(profile.id, existing ? { ...existing, ...profile, tastes: existing.tastes } : profile);
-    r.swipes[profile.id] = r.swipes[profile.id] || {};
+    r.members.set(profile.id, existing ? { ...existing, ...profile } : profile);
     socket.join(r.code);
     r.sockets.set(profile.id, socket.id);
     touch(r);
@@ -236,15 +241,15 @@ io.on('connection', (socket) => {
     const profile = cleanProfile(msg.profile);
     const r = {
       code: newCode(), hostId: profile.id, status: 'lobby',
-      categories: Array.isArray(msg.categories) && msg.categories.length ? msg.categories : ['eat', 'drink', 'do'],
-      hour: Number.isInteger(msg.hour) ? msg.hour : null,
+      archetypes: ARCH.clean(msg.archetypes),
+      tzOffset: Number.isFinite(+msg.tzOffset) && Math.abs(+msg.tzOffset) <= 840 ? +msg.tzOffset : 0,
       weatherOverride: msg.weatherOverride || null, relax: {},
-      meetAt: T.resolveMeetAt(msg.meetAt), sockets: new Map(), statuses: {},
-      members: new Map(), swipes: {}, finished: {}, deck: [], match: null, lastActive: Date.now(),
+      meetAt: null, sockets: new Map(), statuses: {}, reactions: {},
+      members: new Map(), candidates: [], proposal: null, match: null, lastActive: Date.now(),
     };
     rooms.set(r.code, r);
     enter(r, profile);
-    logEvent('created', { room: r.code, categories: r.categories });
+    logEvent('created', { room: r.code, archetypes: r.archetypes });
     ack && ack({ ok: true, code: r.code });
     broadcastLobby(r);
   });
@@ -260,60 +265,83 @@ io.on('connection', (socket) => {
     const host = r.members.get(r.hostId);
     ack && ack({ ok: true, code: r.code, status: r.status, hostName: host ? host.name : '' });
     broadcastLobby(r);
-    // Late joiners and reconnects get the current deck plus whatever they already swiped.
-    if (r.status !== 'lobby') socket.emit('deck', { ...deckPayload(r), swiped: r.swipes[profile.id] });
+    // Late joiners and reconnects see the current proposal, or the locked plan.
+    if (r.status === 'proposed') socket.emit('proposal', proposalPayload(r));
     if (r.match) {
-      socket.emit('match', { place: r.match, rejoin: true });
+      socket.emit('locked', { place: r.match, meetAt: r.meetAt, rejoin: true });
       socket.emit('plan', T.personalPlan(r.members.get(profile.id), r.match, r.meetAt));
     }
   });
 
   socket.on('settings', (msg = {}) => {
-    if (!room || memberId !== room.hostId || room.status !== 'lobby') return;
-    if (Array.isArray(msg.categories) && msg.categories.length) room.categories = msg.categories;
+    if (!room || memberId !== room.hostId || room.status === 'locked') return;
+    if (Array.isArray(msg.archetypes) && msg.archetypes.length) room.archetypes = ARCH.clean(msg.archetypes);
     touch(room);
     broadcastLobby(room);
   });
 
-  socket.on('start', async (_msg, ack) => {
-    if (!room || memberId !== room.hostId) return ack && ack({ ok: false, error: 'Only the host can start' });
-    await dealDeck(room);
-    logEvent('started', { room: room.code, members: room.members.size, deckSize: room.deck.length, relaxed: room.relaxed });
-    io.to(room.code).emit('deck', deckPayload(room));
+  // Host asks Plansy to plan (or re-plan, taking objections into account).
+  socket.on('plan', async (_msg, ack) => {
+    if (!room || memberId !== room.hostId) return ack && ack({ ok: false, error: 'Only the organizer can plan' });
+    if (room.status === 'planning' || room.status === 'locked') return ack && ack({ ok: false, error: 'Already planning' });
+    const feedback = room.status === 'proposed' ? feedbackFor(room) : [];
+    const prev = room.status;
+    room.status = 'planning';
     broadcastLobby(room);
-    ack && ack({ ok: true, count: room.deck.length });
+    try { await runPlan(room, feedback); }
+    catch (e) { room.status = prev; broadcastLobby(room); return ack && ack({ ok: false, error: "Couldn't plan right now. Try again." }); }
+    logEvent('planned', { room: room.code, members: room.members.size, options: room.candidates.length,
+      source: room.proposal.source || 'none', replan: feedback.length > 0 });
+    io.to(room.code).emit('proposal', proposalPayload(room));
+    broadcastLobby(room);
+    ack && ack({ ok: true });
   });
 
-  // Host loosens the filter that cut the most, then everyone gets a fresh deck.
+  // Host loosens the filter that cut the most when nothing fits, then plans again.
   socket.on('loosen', async ({ what } = {}, ack) => {
-    if (!room || memberId !== room.hostId) return ack && ack({ ok: false });
+    if (!room || memberId !== room.hostId || room.status === 'locked') return ack && ack({ ok: false });
     room.relax = { ...room.relax };
     if (what === 'walk') room.relax.walkBoost = (room.relax.walkBoost || 1) * 2;
     if (what === 'budget') room.relax.budgetBoost = (room.relax.budgetBoost || 0) + 1;
-    if (what === 'categories') room.categories = [...new Set([...room.categories, 'do', 'watch'])];
-    await dealDeck(room);
-    logEvent('loosened', { room: room.code, what, deckSize: room.deck.length });
-    io.to(room.code).emit('deck', deckPayload(room));
+    if (what === 'categories') room.archetypes = ARCH.clean([...room.archetypes, 'active', 'culture', 'nightin']);
+    room.status = 'planning'; broadcastLobby(room);
+    await runPlan(room, []);
+    logEvent('loosened', { room: room.code, what, options: room.candidates.length });
+    io.to(room.code).emit('proposal', proposalPayload(room));
     broadcastLobby(room);
-    ack && ack({ ok: true, count: room.deck.length });
+    ack && ack({ ok: true });
   });
 
-  socket.on('swipe', ({ placeId, liked } = {}) => {
-    if (!room || room.status === 'lobby') return;
-    const place = room.deck.find((p) => p.id === placeId);
-    if (!place) return;
+  // "Works for me" / "Doesn't work" on the current pick.
+  socket.on('react', ({ ok, reason } = {}) => {
+    if (!room || room.status !== 'proposed' || !room.proposal || room.proposal.none) return;
+    room.reactions[memberId] = { ok: !!ok, reason: ok ? null : String(reason || '').slice(0, 80) || null };
     touch(room);
-    room.swipes[memberId] = room.swipes[memberId] || {};
-    room.swipes[memberId][placeId] = !!liked;
-    const m = room.members.get(memberId);
-    if (m) m.tastes = F.updateTastes(m.tastes, place, !!liked);
-    socket.emit('tastes', m && m.tastes);
-
-    checkMatch(room);
-    if (Object.keys(room.swipes[memberId]).length >= room.deck.length) room.finished[memberId] = true;
     broadcastLobby(room);
+  });
+
+  // Host locks in the pick or one of the backups.
+  socket.on('choose', ({ id } = {}, ack) => {
+    if (!room || memberId !== room.hostId || room.status !== 'proposed') return ack && ack({ ok: false });
+    const pr = room.proposal;
+    if (!pr || pr.none || ![pr.pick.id, ...pr.backups.map((b) => b.id)].includes(id) || !lock(room, id)) return ack && ack({ ok: false });
     const ids = [...room.members.keys()];
-    if (ids.every((id) => room.finished[id])) sendResults(room);
+    logEvent('locked', { room: room.code, members: ids.length, place: id, wasPick: id === pr.pick.id,
+      objections: Object.values(room.reactions).filter((r) => !r.ok).length });
+    io.to(room.code).emit('locked', { place: room.match, meetAt: room.meetAt });
+    sendPlans(room);
+    broadcastLobby(room);
+    ack && ack({ ok: true });
+  });
+
+  // Someone sets or changes when they can go.
+  socket.on('time', ({ timePref } = {}, ack) => {
+    if (!room || !room.members.has(memberId)) return ack && ack({ ok: false });
+    if (room.status === 'locked') return ack && ack({ ok: false, error: 'locked' });
+    room.members.get(memberId).timePref = P.cleanTimePref(timePref);
+    touch(room);
+    broadcastLobby(room);
+    ack && ack({ ok: true });
   });
 
   // Someone sets or changes where they're starting from. Before a match this moves the
@@ -329,8 +357,6 @@ io.on('connection', (socket) => {
     ack && ack({ ok: true });
   });
 
-  socket.on('results', () => room && sendResults(room, socket));
-
   // "On my way" / "Running late" / "Here", shared with the whole group.
   socket.on('status', ({ state } = {}) => {
     if (!room || !room.match || !T.STATUSES[state]) return;
@@ -341,15 +367,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('shared', ({ kind } = {}) => {
-    if (['invite', 'plan', 'ticket', 'calendar', 'assistant'].includes(kind)) logEvent('shared', { room: room && room.code, kind });
+    if (['invite', 'plan', 'calendar', 'assistant'].includes(kind)) logEvent('shared', { room: room && room.code, kind });
   });
 
   socket.on('disconnect', () => {
     if (!room) return;
-    // Idle guests leave the lobby list; the host and anyone who swiped stay so they can reconnect.
+    // Idle guests leave the lobby list; once planning starts everyone stays so they can reconnect.
     if (room.status === 'lobby' && memberId !== room.hostId) {
       room.members.delete(memberId);
-      delete room.swipes[memberId];
+      delete room.reactions[memberId];
     }
     broadcastLobby(room);
   });
@@ -361,18 +387,6 @@ function sendPlans(r) {
     const sid = r.sockets.get(m.id);
     if (sid) io.to(sid).emit('plan', T.personalPlan(m, r.match, r.meetAt));
   }
-}
-
-function sendResults(r, only) {
-  const ids = [...r.members.keys()];
-  const ranking = F.tally(ids, r.swipes, r.deck).slice(0, 5)
-    .map((x) => ({ place: x.place, likes: x.likes, of: ids.length }));
-  const vibes = [...r.members.values()].map((m) => ({
-    id: m.id,
-    card: F.vibeCard(m, r.deck.filter((p) => r.swipes[m.id] && r.swipes[m.id][p.id] === true)),
-  }));
-  if (!only && !r.resultsSent) { r.resultsSent = true; logEvent('results', { room: r.code, matched: !!r.match }); }
-  (only || io.to(r.code)).emit('results', { match: r.match, ranking, vibes });
 }
 
 function lanUrls() {
