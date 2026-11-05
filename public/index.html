@@ -502,7 +502,7 @@ function useGps(btn) {
 function renderLoc() {
   for (const [id, label] of Object.entries(LOC_SLOTS)) {
     const el = $(id); if (!el) continue;
-    const opts = Object.keys(hoods).map((h) => `<option value="${esc(h)}"${!me.exact && me.hood === h ? ' selected' : ''}>${esc(h)}</option>`);
+    const opts = Object.keys(hoods).map((h) => `<option value="${esc(h)}"${me.locSet && !me.exact && me.hood === h ? ' selected' : ''}>${esc(h)}</option>`);
     if (me.exact) opts.unshift(`<option value="" selected>📍 My exact location (${esc(me.hood || 'set')})</option>`);
     else if (!me.locSet) opts.unshift('<option value="" selected disabled>Pick a neighborhood</option>');
     el.innerHTML = `<label class="field" for="${id}-sel">${label}</label>
