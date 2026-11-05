@@ -483,7 +483,8 @@ $('create').onclick = () => {
   if (createOpts.wmode === 'sim') payload.weatherOverride = { tempF: +$('simtemp').value, raining: $('simrain').checked, source: 'simulated' };
   socket.emit('create', payload, (res) => {
     if (!res.ok) return toast(res.error);
-    room = res.code; history.replaceState(null, '', `?room=${room}`); show('s-lobby');
+    room = res.code; $('code').textContent = room; // show the code right away, before the lobby update arrives
+    history.replaceState(null, '', `?room=${room}`); show('s-lobby');
   });
 };
 
