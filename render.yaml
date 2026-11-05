@@ -12,3 +12,5 @@ services:
         value: "22"
       - key: STATS_KEY
         generateValue: true   # your private key for /api/stats?key=...
+      - key: ANTHROPIC_API_KEY
+        sync: false           # Render asks for it on setup; leave blank to use the rule-based planner

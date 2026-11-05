@@ -1,4 +1,5 @@
-// End-to-end over real sockets: create, join, swipe, match, late join, reconnect, stats.
+// End-to-end over real sockets: create, join, plan, react, re-plan, lock, late join, stats.
+// OFFLINE=1 skips weather and the AI call, so plans come from the rule-based fallback.
 const os = require('os');
 const path = require('path');
 process.env.OFFLINE = '1';
@@ -11,9 +12,10 @@ const { hoods } = require('../data/places');
 
 const emit = (s, ev, data) => new Promise((res) => s.emit(ev, data, res));
 const once = (s, ev) => new Promise((res) => s.once(ev, res));
+const inHours = (h) => new Date(Date.now() + h * 3600e3).toISOString();
 const profile = (id, extra = {}) => ({
   id, name: id, budget: 3, maxWalkMin: 20, canTravel: true, minTempF: 40, okRain: true, diet: [],
-  location: hoods['East Village'], ...extra,
+  location: hoods['East Village'], hood: 'East Village', timePref: { mode: 'arrive', at: inHours(3) }, ...extra,
 });
 let url;
 test.before(() => new Promise((r) => server.listen(0, () => { url = `http://localhost:${server.address().port}`; r(); })));
@@ -21,12 +23,13 @@ test.after(() => new Promise((r) => server.close(r)));
 
 async function makeRoom(host, opts = {}) {
   return new Promise((res) => host.emit('create', {
-    profile: profile('Ana'), categories: ['eat', 'drink'], hour: 19,
+    profile: profile('Ana'), archetypes: ['dinner', 'drinks'], tzOffset: 0,
     weatherOverride: { tempF: 60, raining: false, source: 'test' }, ...opts,
   }, res));
 }
+const waitLobby = (s, pred) => new Promise((res) => { const h = (st) => { if (pred(st)) { s.off('lobby', h); res(st); } }; s.on('lobby', h); });
 
-test('three people: 2 of 3 yeses make a match, results include tickets', async () => {
+test('three people: plan, object, re-plan, lock in, everyone gets a plan', async () => {
   const [a, b, c] = [connect(url), connect(url), connect(url)];
   try {
     const { code } = await makeRoom(a);
@@ -35,42 +38,66 @@ test('three people: 2 of 3 yeses make a match, results include tickets', async (
     assert.ok((await emit(c, 'join', { code, profile: profile('Cam', { diet: ['vegetarian'] }) })).ok);
     assert.equal((await emit(c, 'join', { code: 'ZZZZ', profile: profile('X') })).error, 'expired');
 
-    const decks = Promise.all([a, b, c].map((s) => once(s, 'deck')));
-    const started = await emit(a, 'start', {});
-    assert.ok(started.ok && started.count > 0 && started.count <= 12);
-    const [deckA] = await decks;
-    assert.equal(deckA.group.budget, 2, 'lowest budget');
-    assert.deepEqual(deckA.group.diet, ['vegetarian']);
-    assert.ok(deckA.deck.every((p) => p.price <= 2 && p.diet.includes('vegetarian')));
+    assert.equal((await emit(b, 'plan', {})).ok, false, 'only the organizer plans');
+    const props = Promise.all([a, b, c].map((s) => once(s, 'proposal')));
+    assert.ok((await emit(a, 'plan', {})).ok);
+    const [p] = await props;
+    assert.equal(p.source, 'rules');
+    assert.ok(p.pick.place && p.pick.why);
+    assert.ok(p.backups.length >= 1 && p.backups.length <= 2);
+    for (const opt of [p.pick, ...p.backups]) {
+      assert.ok(opt.place.price <= 2, 'lowest budget');
+      assert.ok(opt.place.archetypes.some((x) => ['dinner', 'drinks'].includes(x)));
+      assert.equal(opt.place.people.length, 3);
+    }
 
-    const [first, second] = deckA.deck;
-    for (const s of [a, b, c]) s.emit('swipe', { placeId: first.id, liked: false });
-    const matches = Promise.all([a, b, c].map((s) => once(s, 'match')));
-    a.emit('swipe', { placeId: second.id, liked: true });
-    b.emit('swipe', { placeId: second.id, liked: true });
-    const [m] = await matches;
-    assert.equal(m.place.id, second.id);
-    assert.equal(m.yes, 2);
+    // Ben objects, Cam is in; the organizer sees both.
+    const seen = waitLobby(a, (s) => s.members.filter((m) => m.reaction).length === 2);
+    b.emit('react', { ok: false, reason: 'Too far' });
+    c.emit('react', { ok: true });
+    const s = await seen;
+    assert.equal(s.members.find((m) => m.id === 'Ben').reaction.reason, 'Too far');
 
-    const results = once(a, 'results');
-    c.emit('swipe', { placeId: second.id, liked: false });
-    for (const s of [a, b, c]) for (const p of deckA.deck.slice(2)) s.emit('swipe', { placeId: p.id, liked: true });
-    const r = await results;
-    assert.equal(r.match.id, second.id);
-    assert.equal(r.vibes.length, 3);
-    assert.match(r.vibes[0].card.text, /^Ana's ticket: /);
+    // Re-plan clears reactions and bumps the round.
+    const again = once(a, 'proposal');
+    assert.ok((await emit(a, 'plan', {})).ok);
+    const p2 = await again;
+    assert.equal(p2.round, p.round + 1);
+    assert.notEqual(p2.pick.id, p.pick.id, 'moves off the place Ben objected to');
+    assert.deepEqual(rooms.get(code).reactions, {});
+
+    // Lock in a backup: everyone gets the locked place and their own plan.
+    const choice = p2.backups[0].id;
+    const locked = Promise.all([a, b, c].map((s) => once(s, 'locked')));
+    const plans = Promise.all([a, b, c].map((s) => once(s, 'plan')));
+    assert.equal((await emit(b, 'choose', { id: choice })).ok, false, 'only the organizer locks');
+    assert.equal((await emit(a, 'choose', { id: 'nope' })).ok, false, 'only offered options');
+    assert.ok((await emit(a, 'choose', { id: choice })).ok);
+    const [l] = await locked;
+    assert.equal(l.place.id, choice);
+    const [pa] = await plans;
+    assert.equal(pa.meetAt, l.meetAt);
+    assert.ok(Date.parse(pa.leaveBy) <= Date.parse(pa.meetAt));
   } finally { [a, b, c].forEach((s) => s.close()); }
 });
 
-test('swiping right on a card records a yes, not a pass', async () => {
+test('timing shapes the plan: a "leave at" time is never earlier than the person said', async () => {
   const [a, b] = [connect(url), connect(url)];
   try {
     const { code } = await makeRoom(a);
-    await emit(b, 'join', { code, profile: profile('Ben') });
-    const deck = once(a, 'deck'); await emit(a, 'start', {}); const d = await deck;
-    a.emit('swipe', { placeId: d.deck[0].id, liked: true });
-    await new Promise((r) => setTimeout(r, 50));
-    assert.equal(rooms.get(code).swipes.Ana[d.deck[0].id], true);
+    const departAt = inHours(2);
+    await emit(b, 'join', { code, profile: profile('Ben', { location: hoods.Midtown, hood: 'Midtown', timePref: { mode: 'depart', at: departAt } }) });
+    const prop = once(a, 'proposal'); await emit(a, 'plan', {}); const p = await prop;
+    for (const opt of [p.pick, ...p.backups]) {
+      const ben = opt.place.people.find((x) => x.id === 'Ben');
+      assert.equal(ben.mode, 'depart');
+      assert.ok(Date.parse(ben.leaveBy) >= Date.parse(departAt) - 1000);
+    }
+    // Changing your time shows in the lobby.
+    const later = inHours(4);
+    const seen = waitLobby(a, (s) => (s.members.find((m) => m.id === 'Ben').timePref || {}).at === later);
+    assert.ok((await emit(b, 'time', { timePref: { mode: 'arrive', at: later } })).ok);
+    await seen;
   } finally { [a, b].forEach((s) => s.close()); }
 });
 
@@ -86,68 +113,80 @@ test('a solo host can drop and the invite still works', async () => {
   try { assert.ok((await emit(b, 'join', { code, profile: profile('Ben') })).ok); } finally { b.close(); }
 });
 
-test('late joiner gets the deck and resumes where they left off', async () => {
+test('late joiners see the current proposal, and the locked plan after', async () => {
   const [a, b] = [connect(url), connect(url)];
-  let late;
+  const extra = [];
   try {
     const { code } = await makeRoom(a);
     await emit(b, 'join', { code, profile: profile('Ben') });
-    const deck = once(a, 'deck'); await emit(a, 'start', {}); const d = await deck;
-    late = connect(url);
-    const lateDeck = once(late, 'deck');
+    const prop = once(a, 'proposal'); await emit(a, 'plan', {}); const p = await prop;
+    const late = connect(url); extra.push(late);
+    const lp = once(late, 'proposal');
     assert.ok((await emit(late, 'join', { code, profile: profile('Cy') })).ok);
-    const ld = await lateDeck;
-    assert.equal(ld.deck.length, d.deck.length);
-    late.emit('swipe', { placeId: d.deck[0].id, liked: true });
-    await new Promise((r) => setTimeout(r, 50));
-    const again = connect(url);
-    const resumed = once(again, 'deck');
-    await emit(again, 'join', { code, profile: profile('Cy') });
-    assert.equal((await resumed).swiped[d.deck[0].id], true);
-    again.close();
-  } finally { [a, b, late].forEach((s) => s && s.close()); }
+    assert.equal((await lp).pick.id, p.pick.id);
+    await emit(a, 'choose', { id: p.pick.id });
+    const later = connect(url); extra.push(later);
+    const got = Promise.all([once(later, 'locked'), once(later, 'plan')]);
+    await emit(later, 'join', { code, profile: profile('Dee') });
+    const [l, plan] = await got;
+    assert.equal(l.place.id, p.pick.id);
+    assert.equal(plan.memberId, 'Dee');
+  } finally { [a, b, ...extra].forEach((s) => s.close()); }
 });
 
-test('host can loosen a dead-end deck', async () => {
+test('when nothing fits, the organizer can loosen the limit that cut the most', async () => {
   const [a, b] = [connect(url), connect(url)];
   try {
     const strict = { canTravel: false, maxWalkMin: 5, budget: 1, diet: ['kosher'] };
-    const { code } = await new Promise((res) => a.emit('create', {
-      profile: profile('Ana', strict), categories: ['do'], hour: 19,
-      weatherOverride: { tempF: 60, raining: false, source: 'test' } }, res));
+    const { code } = await makeRoom(a, { profile: profile('Ana', strict), archetypes: ['active'] });
     await emit(b, 'join', { code, profile: profile('Ben', strict) });
-    const deck = once(a, 'deck'); await emit(a, 'start', {}); const d = await deck;
-    assert.equal(d.deck.length, 0);
-    assert.ok(d.blocker && d.blocker.action);
-    const res = await emit(a, 'loosen', { what: d.blocker.what });
-    assert.ok(res.ok);
+    const prop = once(a, 'proposal'); await emit(a, 'plan', {}); const p = await prop;
+    assert.ok(p.none);
+    assert.ok(p.blocker && p.blocker.action);
+    const next = once(a, 'proposal');
+    assert.ok((await emit(a, 'loosen', { what: p.blocker.what })).ok);
+    assert.ok(await next);
   } finally { [a, b].forEach((s) => s.close()); }
 });
 
-test('on a match, each person gets their own leave-by and can share status', async () => {
+test('changing your starting point updates the lobby and your leave-by', async () => {
   const [a, b] = [connect(url), connect(url)];
   try {
-    const meetAt = new Date(Date.now() + 3 * 3600e3).toISOString();
-    const { code } = await makeRoom(a, { meetAt });
-    await emit(b, 'join', { code, profile: profile('Ben', { location: hoods.Midtown, canTravel: false, maxWalkMin: 60 }) });
-    const deck = once(a, 'deck'); await emit(a, 'start', {}); const d = await deck;
-    const plans = Promise.all([once(a, 'plan'), once(b, 'plan')]);
-    a.emit('swipe', { placeId: d.deck[0].id, liked: true });
-    b.emit('swipe', { placeId: d.deck[0].id, liked: true });
-    const [pa, pb] = await plans;
-    assert.equal(pa.memberId, 'Ana'); assert.equal(pb.memberId, 'Ben');
-    assert.equal(pa.meetAt, meetAt);
-    assert.ok(Date.parse(pa.leaveBy) < Date.parse(meetAt));
-    assert.notEqual(pa.leaveBy, pb.leaveBy, 'different starting points, different leave-by');
+    const { code } = await makeRoom(a);
+    await emit(b, 'join', { code, profile: profile('Ben', { canTravel: false, maxWalkMin: 60 }) });
+    const moved = waitLobby(a, (s) => (s.members.find((x) => x.id === 'Ben') || {}).from === 'Midtown');
+    assert.ok((await emit(b, 'location', { location: hoods.Midtown, hood: 'Midtown' })).ok);
+    await moved;
+    assert.equal((await emit(b, 'location', { location: { lat: 'x', lng: 999 }, hood: 'Nowhere' })).ok, false, 'junk rejected');
 
-    const lobby = new Promise((res) => a.on('lobby', (s) => { if (s.members.some((m) => m.status)) res(s); }));
+    const prop = once(a, 'proposal'); await emit(a, 'plan', {}); const p = await prop;
+    const first = once(b, 'plan');
+    await emit(a, 'choose', { id: p.pick.id });
+    const before = await first;
+    assert.equal(before.from, 'Midtown');
+    const after = once(b, 'plan');
+    await emit(b, 'location', { location: hoods.Williamsburg, hood: 'Williamsburg' });
+    const now = await after;
+    assert.equal(now.from, 'Williamsburg');
+    assert.notEqual(now.leaveBy, before.leaveBy, 'new start, new leave-by');
+  } finally { [a, b].forEach((s) => s.close()); }
+});
+
+test('on a lock, people can share status with the group', async () => {
+  const [a, b] = [connect(url), connect(url)];
+  try {
+    const { code } = await makeRoom(a);
+    await emit(b, 'join', { code, profile: profile('Ben') });
+    const prop = once(a, 'proposal'); await emit(a, 'plan', {}); const p = await prop;
+    await emit(a, 'choose', { id: p.pick.id });
+    const lobby = waitLobby(a, (s) => s.members.some((m) => m.status));
     b.emit('status', { state: 'late' });
     const s = await lobby;
     assert.equal(s.members.find((m) => m.id === 'Ben').status.label, 'Running 10 min late');
   } finally { [a, b].forEach((s) => s.close()); }
 });
 
-test('public-internet limits: full groups and junk tastes', async () => {
+test('public-internet limits: full groups and junk timing', async () => {
   const host = connect(url);
   const extra = [];
   try {
@@ -159,17 +198,17 @@ test('public-internet limits: full groups and junk tastes', async () => {
     const late = connect(url); extra.push(late);
     assert.equal((await emit(late, 'join', { code, profile: profile('Thirteen') })).error, 'full');
     const junk = connect(url); extra.push(junk);
-    const big = Object.fromEntries(Array.from({ length: 500 }, (_, i) => [`k${i}`, 1e9]));
-    await emit(junk, 'create', { profile: profile('Junk', { tastes: big }) });
+    await emit(junk, 'create', { profile: profile('Junk', { timePref: { mode: 'whenever', at: 'x' } }), archetypes: ['nope'] });
     const r = [...rooms.values()].find((x) => x.members.has('Junk'));
-    const t = r.members.get('Junk').tastes;
-    assert.ok(Object.keys(t).length <= 60 && Object.values(t).every((v) => v <= 3));
+    assert.equal(r.members.get('Junk').timePref, null);
+    assert.deepEqual(r.archetypes, ['catchup', 'dinner', 'drinks'], 'unknown archetypes fall back to defaults');
   } finally { [host, ...extra].forEach((s) => s.close()); }
 });
 
 test('stats funnel counts decided groups', () => {
   const f = funnel();
   assert.ok(f.funnel.created >= 4);
+  assert.ok(f.funnel.planned >= 3);
   assert.ok(f.weeklyDecidedGroups >= 1);
   assert.ok(f.joinsByLink >= 1);
 });

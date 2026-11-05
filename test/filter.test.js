@@ -57,62 +57,6 @@ test('opening hours, including past midnight', () => {
   assert.ok(!F.isOpenAt({ hours: { open: 9, close: 16 } }, 19));
 });
 
-test('categories make a mixed deck', () => {
-  const g = F.mergeProfiles([base]);
-  const { kept } = F.filterPlaces(places, g, { hour: 20, categories: ['eat', 'watch'] });
-  const cats = new Set(kept.map((p) => p.category));
-  assert.deepEqual([...cats].sort(), ['eat', 'watch']);
-});
-
-test('tastes move the deck order', () => {
-  const g = F.mergeProfiles([base]);
-  const { kept } = F.filterPlaces(places, g, { hour: 19, categories: ['eat'] });
-  const neutral = F.rankDeck(kept, [base], 5);
-  const lover = F.rankDeck(kept, [{ ...base, tastes: { pizza: 3 } }], 5);
-  assert.ok(lover.filter((p) => p.subtype === 'pizza').length > neutral.filter((p) => p.subtype === 'pizza').length);
-});
-
-test('match requires every member to like the same place', () => {
-  const deck = [{ id: 'a' }, { id: 'b' }];
-  const swipes = { u1: { a: true, b: true }, u2: { a: false, b: true } };
-  assert.equal(F.findMatch(['u1', 'u2'], swipes, deck).id, 'b');
-  assert.equal(F.findMatch(['u1', 'u2'], { u1: { a: true }, u2: { a: false } }, deck), null);
-});
-
-test('vibe ticket ignores free items and respects subway', () => {
-  const liked = [{ subtype: 'thai', price: 2 }, { subtype: 'thai', price: 2 }, { subtype: 'drama', price: 0 }];
-  const walker = F.vibeCard({ name: 'Mo', budget: 3, maxWalkMin: 12, canTravel: false }, liked);
-  assert.equal(walker.text, "Mo's ticket: $$ · thai, drama · walks up to 12 min");
-  const rider = F.vibeCard({ name: 'Mo', budget: 3, maxWalkMin: 12, canTravel: true }, [{ subtype: 'drama', price: 0 }]);
-  assert.equal(rider.text, "Mo's ticket: $$$ · drama · takes the subway");
-});
-
-test('near-unanimous match for groups of 3+', () => {
-  assert.equal(F.yesNeeded(2), 2);
-  assert.equal(F.yesNeeded(3), 2);
-  assert.equal(F.yesNeeded(5), 4);
-  const deck = [{ id: 'a' }];
-  const swipes = { u1: { a: true }, u2: { a: true }, u3: { a: false } };
-  assert.equal(F.findMatch(['u1', 'u2', 'u3'], swipes, deck, 2).id, 'a');
-  assert.equal(F.findMatch(['u1', 'u2', 'u3'], swipes, deck, 3), null);
-});
-
-test('streaming stays out of a lunch deck and is capped late at night', () => {
-  const lunch = F.buildDeck(places, [base], { hour: 12, categories: ['eat', 'watch'] });
-  assert.equal(lunch.deck.filter((p) => p.category === 'watch').length, 0);
-  const late = F.buildDeck(places, [base], { hour: 22, categories: ['eat', 'drink', 'watch'] });
-  assert.ok(late.deck.filter((p) => p.category === 'watch').length <= 2);
-  const watchOnly = F.buildDeck(places, [base], { hour: 12, categories: ['watch'] });
-  assert.equal(watchOnly.deck.length, 8);
-});
-
-test('thin decks loosen walk first, then budget, and say so', () => {
-  const strict = { ...base, canTravel: false, maxWalkMin: 5, budget: 1 };
-  const r = F.buildDeck(places, [strict], { hour: 19, categories: ['eat', 'drink', 'do'] });
-  assert.ok(r.relaxed.some((n) => n.startsWith('Stretched walk')), JSON.stringify(r.relaxed));
-  assert.ok(r.deck.length > 0);
-});
-
 test('top blocker names a filter the host can loosen', () => {
   const g = F.mergeProfiles([{ ...base, canTravel: false, maxWalkMin: 5 }]);
   const b = F.topBlocker({ distance: 30, budget: 4, weather: 50 }, g);
