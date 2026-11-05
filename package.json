@@ -1,0 +1,22 @@
+{
+  "name": "plansy",
+  "version": "1.0.0",
+  "description": "Swipe to decide anything with your group",
+  "scripts": {
+    "test": "node --test --test-force-exit test/*.test.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.22.3",
+    "socket.io": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

@@ -1,0 +1,14 @@
+# Render Blueprint: New > Blueprint, then pick this repo.
+services:
+  - type: web
+    name: plansy
+    runtime: node
+    plan: free            # free sleeps after 15 idle minutes; pick a paid plan to keep it awake
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: STATS_KEY
+        generateValue: true   # your private key for /api/stats?key=...

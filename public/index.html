@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B1F3B">
+<title>Plansy</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231B1F3B'/><text x='50' y='72' font-size='64' text-anchor='middle' fill='%23FF5A3C' font-family='sans-serif' font-weight='800'>P</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EAF2FF; --ink: #1B1F3B; --muted: #4E5579; --stub: #FFFFFF; --line: #C9D6F2; --field: #8FA3CF;
+  --hot: #FF5A3C; --hot-btn: #D2391F; --yes: #17804F; --chip: #DCE7FC; --err: #C2361D; --focus: #C2361D;
+  --display: 'Bricolage Grotesque', system-ui, sans-serif; --body: 'Figtree', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #141833; --ink: #EEF2FF; --muted: #A9B0D6; --stub: #222852; --line: #343B70; --field: #6A74B5;
+    --chip: #2B3264; --err: #FF8A73; --focus: #FF8A73; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); -webkit-tap-highlight-color: transparent; }
+body { min-height: 100dvh; }
+main { max-width: 440px; margin: 0 auto; padding: 20px 16px calc(28px + env(safe-area-inset-bottom)); }
+h1, h2 { font-family: var(--display); margin: 0; line-height: 1.05; letter-spacing: -0.02em; }
+h1 { font-size: 44px; font-weight: 800; }
+h2 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.screen { display: none; }
+.screen.on { display: block; }
+section { margin: 22px 0; }
+.field { display: block; font-weight: 600; margin: 18px 0 8px; }
+.field span { float: right; font-weight: 400; color: var(--muted); }
+input[type=text], select {
+  width: 100%; min-height: 48px; padding: 12px 14px; font: inherit; color: var(--ink); background: var(--stub);
+  border: 2px solid var(--field); border-radius: 12px;
+}
+input[type=range] { width: 100%; height: 32px; accent-color: var(--hot-btn); }
+.seg, .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg button, .chips button {
+  flex: 1 0 auto; min-height: 48px; padding: 10px 14px; border-radius: 999px; border: 2px solid transparent;
+  background: var(--chip); color: var(--ink); font: 600 15px var(--body); cursor: pointer;
+}
+.seg button[aria-pressed=true], .chips button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+label.toggle { display: flex; justify-content: space-between; align-items: center; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+label.toggle input { width: 24px; height: 24px; accent-color: var(--hot-btn); }
+.btn {
+  display: block; width: 100%; min-height: 56px; padding: 16px; margin-top: 12px; border: 0; border-radius: 14px;
+  font: 800 19px var(--display); cursor: pointer; background: var(--hot-btn); color: #fff; text-align: center;
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink); }
+.btn:disabled { opacity: .45; cursor: default; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+.err { color: var(--err); font-weight: 600; }
+.err:empty { display: none; }
+.linkbtn { background: none; border: 0; color: var(--ink); font: 600 16px var(--body); text-decoration: underline; cursor: pointer; padding: 12px 0; min-height: 48px; }
+.center { text-align: center; }
+details.testing { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.testing summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; color: var(--muted); }
+
+/* Invite card */
+.invite { background: var(--stub); border-radius: 20px; padding: 24px 20px; margin-top: 8vh; box-shadow: 0 10px 30px rgba(27,31,59,.12); }
+.invite h1 { font-size: 34px; margin-bottom: 8px; }
+
+/* Lobby */
+.code { font: 800 72px/1 var(--display); letter-spacing: .08em; margin: 8px 0 4px; }
+.members { list-style: none; padding: 0; margin: 0; }
+.members li { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+
+/* Deck */
+.rules { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
+.rules span, .rules button { background: var(--chip); padding: 4px 10px; border-radius: 8px; font: 14px var(--body); color: var(--ink); border: 0; min-height: 30px; }
+.rules button { cursor: pointer; font-weight: 600; }
+.rules .note { background: var(--ink); color: var(--bg); }
+.stack { position: relative; height: clamp(320px, 50dvh, 400px); margin: 4px 0 16px; }
+.stub {
+  position: absolute; inset: 0; background: var(--stub); border-radius: 18px; padding: 22px 22px 18px;
+  box-shadow: 0 10px 30px rgba(27,31,59,.14); touch-action: pan-y; user-select: none;
+  display: flex; flex-direction: column; will-change: transform;
+}
+.stub .tear { margin: auto -22px 14px; border-top: 3px dotted var(--line); position: relative; }
+.stub .tear::before, .stub .tear::after {
+  content: ''; position: absolute; top: -14px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg);
+}
+.stub .tear::before { left: -12px; } .stub .tear::after { right: -12px; }
+.stub .emoji { font-size: 72px; line-height: 1; margin-bottom: 14px; }
+.stub .name { font: 800 32px/1.05 var(--display); letter-spacing: -0.02em; }
+.stub .kind { color: var(--muted); margin-top: 6px; }
+.stub .why { margin-top: 14px; font-weight: 600; }
+.stub .facts { display: flex; justify-content: space-between; font-weight: 600; }
+.stub .facts small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.stub.behind { transform: scale(.95) translateY(14px); opacity: .7; }
+.stub .verdict {
+  position: absolute; top: 26px; padding: 4px 12px; border: 4px solid; border-radius: 10px;
+  font: 800 28px var(--display); opacity: 0; transform: rotate(-12deg);
+}
+.stub .verdict.y { left: 20px; color: var(--yes); } .stub .verdict.n { right: 20px; color: var(--hot-btn); transform: rotate(12deg); }
+.actions { display: flex; gap: 14px; }
+.actions button {
+  flex: 1; min-height: 56px; padding: 14px; border-radius: 999px; border: 3px solid var(--ink); background: transparent;
+  color: var(--ink); font: 800 19px var(--display); cursor: pointer;
+}
+.actions .like { background: var(--yes); border-color: var(--yes); color: #fff; }
+.people { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; color: var(--muted); font-size: 14px; margin-top: 12px; }
+.people b { color: var(--ink); font-weight: 600; }
+.empty { text-align: center; padding: 48px 10px; }
+
+/* Match */
+.overlay {
+  position: fixed; inset: 0; background: rgba(20,24,51,.88); display: none; align-items: center;
+  justify-content: center; padding: 24px; z-index: 10;
+}
+.overlay.on { display: flex; }
+.matchcard { background: var(--stub); color: var(--ink); border-radius: 20px; padding: 28px 22px; width: 100%; max-width: 400px; text-align: center; }
+.stamp {
+  display: inline-block; font: 800 40px/1 var(--display); color: var(--hot-btn); border: 5px solid var(--hot-btn);
+  border-radius: 12px; padding: 8px 14px; transform: rotate(-8deg); margin-bottom: 18px;
+}
+@media (prefers-color-scheme: dark) { .stamp { color: var(--hot); border-color: var(--hot); } }
+@media (prefers-reduced-motion: no-preference) {
+  .overlay.on .stamp { animation: stamp .45s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes stamp { from { transform: rotate(-8deg) scale(2.4); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: 1; } }
+}
+
+/* Results */
+.rank { list-style: none; padding: 0; margin: 0; }
+.rank li { display: flex; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.rank .e { font-size: 34px; }
+.rank b { display: block; font-family: var(--display); font-size: 19px; }
+.ticket { background: var(--ink); color: var(--bg); border-radius: 18px; padding: 22px 22px 18px; margin-top: 20px; }
+.ticket .t-name { font: 800 28px/1.05 var(--display); }
+.ticket .t-label { opacity: .75; font-size: 14px; }
+.ticket .tear { border-top: 3px dotted rgba(234,242,255,.35); margin: 16px -22px; position: relative; }
+.ticket .tear::before, .ticket .tear::after { content: ''; position: absolute; top: -14px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); }
+.ticket .tear::before { left: -12px; } .ticket .tear::after { right: -12px; }
+.ticket dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 14px; }
+.ticket dt { opacity: .75; } .ticket dd { margin: 0; font-weight: 600; }
+.ticket .btn { margin-top: 4px; }
+.plan { background: var(--stub); border-radius: 18px; padding: 20px; margin: 14px 0 6px; box-shadow: 0 6px 20px rgba(27,31,59,.08); }
+.plan .times { display: flex; gap: 18px; margin: 8px 0 4px; }
+.plan .times b { display: block; font: 800 26px/1.1 var(--display); white-space: nowrap; }
+.plan .links { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.plan .links .linkbtn { white-space: nowrap; }
+.plan .times small { color: var(--muted); }
+.plan .btn { margin-top: 10px; }
+.status-row { display: flex; gap: 8px; margin-top: 14px; }
+.status-row button { flex: 1; min-height: 48px; border-radius: 12px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font: 600 14px var(--body); cursor: pointer; padding: 6px; }
+.status-row button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+.group-status { list-style: none; padding: 0; margin: 12px 0 0; }
+.group-status li { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.leave-now { color: var(--err); font-weight: 600; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; display: none; z-index: 20; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main id="app">
+
+  <!-- Invite: a friend opening a link with no saved name -->
+  <div class="screen" id="s-invite">
+    <div class="invite">
+      <p class="err" id="err-invite" role="alert"></p>
+      <h1 id="inv-title">You're invited to plan tonight</h1>
+      <p class="muted">Swipe on a few spots. When everyone says yes, it's a match.</p>
+      <label class="field" for="inv-name">Your name</label>
+      <input type="text" id="inv-name" maxlength="24" autocomplete="given-name" enterkeyhint="go">
+      <p class="field" id="inv-diet-label">Any dietary needs? <span>Optional</span></p>
+      <div class="chips" id="inv-diet" role="group" aria-labelledby="inv-diet-label"></div>
+      <button class="btn" id="inv-join">Join the group</button>
+    </div>
+  </div>
+
+  <!-- Home -->
+  <div class="screen" id="s-home">
+    <h1 id="home-title">Plansy</h1>
+    <p class="muted">Swipe with friends. Match on what to do tonight.</p>
+    <p class="err" id="err-home" role="alert"></p>
+    <div id="home-name-wrap">
+      <label class="field" for="home-name">Your name</label>
+      <input type="text" id="home-name" maxlength="24" autocomplete="given-name">
+    </div>
+    <button class="btn" id="go-create">Start a group</button>
+    <label class="field" for="joincode">Have a code?</label>
+    <div class="row">
+      <input type="text" id="joincode" maxlength="4" placeholder="ABCD" autocapitalize="characters" style="text-transform:uppercase">
+      <button class="btn ghost" id="go-join" style="margin:0">Join</button>
+    </div>
+    <p><button class="linkbtn" id="go-prefs">Edit my preferences</button></p>
+  </div>
+
+  <!-- Preferences -->
+  <div class="screen" id="s-prefs">
+    <h2>My preferences</h2>
+    <p class="muted">Plansy combines everyone's limits so the group only sees plans that work for all of you.</p>
+
+    <label class="field" for="name">Your name</label>
+    <input type="text" id="name" maxlength="24" autocomplete="given-name">
+
+    <p class="field" id="budget-label">Budget</p>
+    <div class="seg" id="budget" role="group" aria-labelledby="budget-label"></div>
+
+    <label class="field" for="walk">Longest walk <span id="walkv"></span></label>
+    <input type="range" id="walk" min="5" max="30" step="1">
+    <label class="toggle"><span>Happy to take the subway or a cab</span><input type="checkbox" id="travel"></label>
+
+    <label class="field" for="temp">Skip outdoor plans below <span id="tempv"></span></label>
+    <input type="range" id="temp" min="20" max="80" step="1">
+    <label class="toggle"><span>Fine with outdoor plans in the rain</span><input type="checkbox" id="rain"></label>
+
+    <p class="field" id="diet-label">Dietary needs</p>
+    <div class="chips" id="diet" role="group" aria-labelledby="diet-label"></div>
+
+    <label class="field" for="hood">Where you are</label>
+    <select id="hood"></select>
+    <button class="linkbtn" id="gps">Use my exact location</button>
+
+    <button class="btn" id="prefs-done">Save</button>
+  </div>
+
+  <!-- Create -->
+  <div class="screen" id="s-create">
+    <h2>What's on the table?</h2>
+    <p class="muted">Mix categories when the group hasn't decided what kind of plan it is.</p>
+    <div class="chips" id="cats" role="group" aria-label="Categories"></div>
+
+    <p class="field" id="when-label">When</p>
+    <div class="seg" id="when" role="group" aria-labelledby="when-label"></div>
+
+    <details class="testing">
+      <summary>Testing options</summary>
+      <p class="muted">Pretend the weather is different to see how the deck changes.</p>
+      <div class="seg" id="wmode" role="group" aria-label="Weather"></div>
+      <div id="wsim" style="display:none">
+        <label class="field" for="simtemp">Simulated temperature <span id="simtempv"></span></label>
+        <input type="range" id="simtemp" min="10" max="95" value="45">
+        <label class="toggle"><span>Simulate rain</span><input type="checkbox" id="simrain"></label>
+      </div>
+    </details>
+
+    <button class="btn" id="create">Create group</button>
+    <button class="btn ghost" data-home>Back</button>
+  </div>
+
+  <!-- Lobby -->
+  <div class="screen" id="s-lobby">
+    <p class="muted">Group code</p>
+    <div class="code" id="code"></div>
+    <button class="btn" id="share">Send invite link</button>
+    <p class="muted" id="solo-hint">Plansy works best with 2 to 6 people.</p>
+    <section>
+      <h2>Who's in</h2>
+      <ul class="members" id="members"></ul>
+    </section>
+    <button class="btn" id="start">Start swiping</button>
+    <p class="center"><button class="linkbtn" id="start-solo">Start on my own</button></p>
+    <p class="muted center" id="waiting">Waiting for the host to start.</p>
+  </div>
+
+  <!-- Swipe -->
+  <div class="screen" id="s-swipe">
+    <h2>Tonight's options</h2>
+    <div class="rules" id="rules"></div>
+    <div class="stack" id="stack"></div>
+    <div class="actions" id="actions">
+      <button class="pass" id="pass">Pass</button>
+      <button class="like" id="like">I'm in</button>
+    </div>
+    <div class="people" id="people" aria-hidden="true"></div>
+    <p class="sr" id="live" aria-live="polite"></p>
+  </div>
+
+  <!-- Results -->
+  <div class="screen" id="s-results">
+    <h2 id="res-title">Group picks</h2>
+    <p class="muted" id="res-sub"></p>
+    <div class="plan" id="plan" style="display:none" aria-labelledby="plan-title">
+      <h2 id="plan-title" style="font-size:22px">Your plan</h2>
+      <div class="times">
+        <div><b id="p-meet"></b><small>Meet</small></div>
+        <div><b id="p-leave"></b><small id="p-how"></small></div>
+      </div>
+      <p class="leave-now" id="p-now" style="display:none">Time to head out.</p>
+      <button class="btn" id="p-ics">Add to my calendar</button>
+      <button class="btn ghost" id="p-assistant">Send to my AI assistant</button>
+      <div class="links">
+        <button class="linkbtn" id="p-dir">Directions</button>
+        <button class="linkbtn" id="p-gcal">Google Calendar</button>
+        <button class="linkbtn" id="p-email">Email it to me</button>
+      </div>
+      <p class="field" id="status-label" style="margin-top:6px">Let the group know</p>
+      <div class="status-row" role="group" aria-labelledby="status-label">
+        <button data-status="omw" aria-pressed="false">On my way</button>
+        <button data-status="late" aria-pressed="false">Running late</button>
+        <button data-status="here" aria-pressed="false">I'm here</button>
+      </div>
+      <ul class="group-status" id="group-status"></ul>
+    </div>
+    <ul class="rank" id="rank"></ul>
+    <div class="ticket" id="ticket" style="display:none">
+      <div class="t-label">Plansy ticket</div>
+      <div class="t-name" id="t-name"></div>
+      <div class="tear"></div>
+      <dl>
+        <dt>Budget</dt><dd id="t-price"></dd>
+        <dt>Into</dt><dd id="t-likes"></dd>
+        <dt>Gets there</dt><dd id="t-reach"></dd>
+      </dl>
+      <button class="btn" id="share-ticket">Share my ticket</button>
+    </div>
+    <button class="btn ghost" id="again">Plan something else</button>
+  </div>
+</main>
+
+<div class="overlay" id="match" role="dialog" aria-modal="true" aria-labelledby="m-name">
+  <div class="matchcard">
+    <div class="stamp">It's a match</div>
+    <div style="font-size:64px" id="m-emoji" aria-hidden="true"></div>
+    <h2 id="m-name"></h2>
+    <p class="muted" id="m-meta"></p>
+    <p id="m-plan" style="font-weight:600"></p>
+    <button class="btn" id="m-share">Share the plan</button>
+    <button class="btn ghost" id="m-keep">See my plan</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const socket = io();
+const DEFAULTS = {
+  id: Math.random().toString(36).slice(2, 10), name: '', budget: 2, maxWalkMin: 15, canTravel: false,
+  minTempF: 50, okRain: false, diet: [], hood: 'East Village', location: null, tastes: {},
+};
+// Merge over defaults so older or partial saved profiles never break the app.
+let me = { ...DEFAULTS, ...(store.get('plansy.profile', null) || {}) };
+if (!Array.isArray(me.diet)) me.diet = [];
+let hoods = {};
+let room = null, hostId = null, deck = [], idx = 0, lastMatch = null, myTicket = null, joinVia = 'code';
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === id));
+  window.scrollTo(0, 0);
+}
+function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => (el.style.display = 'none'), 2400); }
+function save() { store.set('plansy.profile', me); }
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const priceTxt = (p) => (p ? '$'.repeat(p) : 'Free');
+const hourTxt = (h) => { const x = ((h % 24) + 24) % 24; return `${x % 12 || 12}${x < 12 ? 'am' : 'pm'}`; };
+const appUrl = (params) => `${location.origin}/?${new URLSearchParams(params)}`;
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+// Chosen time today (or tomorrow if it already passed). "Now" lets the server pick next quarter hour + 30.
+function meetAtFor(when) {
+  if (when === 'now') return null;
+  const d = new Date(); d.setHours(Math.floor(when), Math.round((when % 1) * 60), 0, 0);
+  if (d.getTime() < Date.now() - 15 * 60e3) d.setDate(d.getDate() + 1);
+  return d.toISOString();
+}
+
+async function share(kind, text, url) {
+  socket.emit('shared', { kind });
+  const full = `${text} ${url}`;
+  if (navigator.share) { try { await navigator.share({ title: 'Plansy', text, url }); return; } catch { return; } }
+  try { await navigator.clipboard.writeText(full); toast('Copied. Paste it into your group chat.'); } catch { toast(full); }
+}
+
+function seg(el, options, value, onPick, multi = false) {
+  el.innerHTML = '';
+  options.forEach(([v, label]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label;
+    b.setAttribute('aria-pressed', multi ? value.includes(v) : value === v);
+    b.onclick = () => {
+      value = multi ? (value.includes(v) ? value.filter((x) => x !== v) : [...value, v]) : v;
+      seg(el, options, value, onPick, multi); onPick(value);
+    };
+    el.appendChild(b);
+  });
+}
+const DIET_OPTS = [['vegetarian', 'Vegetarian'], ['vegan', 'Vegan'], ['gluten-free', 'Gluten-free'], ['halal', 'Halal'], ['kosher', 'Kosher']];
+
+// ---------- Home ----------
+function renderHome() {
+  $('home-title').textContent = me.name ? `Hi ${me.name}` : 'Plansy';
+  $('home-name-wrap').style.display = me.name ? 'none' : 'block';
+  $('home-name').value = me.name;
+  $('err-home').textContent = '';
+  show('s-home');
+}
+$('home-name').oninput = () => { me.name = $('home-name').value.trim(); save(); };
+function needName(errEl, input) {
+  if (me.name) return false;
+  errEl.textContent = 'Add your name so friends know who joined.'; input.focus(); return true;
+}
+$('go-create').onclick = () => { if (!needName($('err-home'), $('home-name'))) { initCreate(); show('s-create'); } };
+$('go-join').onclick = () => {
+  if (needName($('err-home'), $('home-name'))) return;
+  const code = $('joincode').value.trim().toUpperCase();
+  if (code.length !== 4) { $('err-home').textContent = 'Group codes are 4 characters.'; $('joincode').focus(); return; }
+  joinVia = 'code'; join(code);
+};
+$('go-prefs').onclick = () => { renderPrefs(); show('s-prefs'); };
+document.querySelectorAll('[data-home]').forEach((b) => (b.onclick = renderHome));
+
+// ---------- Invite card ----------
+async function renderInvite(code) {
+  $('err-invite').textContent = '';
+  $('inv-name').value = me.name;
+  seg($('inv-diet'), DIET_OPTS, me.diet, (v) => { me.diet = v; save(); }, true);
+  show('s-invite');
+  try {
+    const info = await fetch(`/api/room/${encodeURIComponent(code)}`).then((r) => (r.ok ? r.json() : null));
+    if (!info) throw 0;
+    $('inv-title').textContent = `${info.hostName} invited you to plan tonight`;
+    $('inv-join').textContent = `Join ${info.hostName}'s group`;
+  } catch {
+    $('err-invite').textContent = "That group code didn't work. It may have expired. Ask for a new link.";
+    $('inv-join').textContent = 'Go to Plansy';
+    $('inv-join').onclick = () => { history.replaceState(null, '', '/'); renderHome(); };
+    return;
+  }
+  $('inv-name').focus();
+  const go = () => {
+    const name = $('inv-name').value.trim();
+    if (!name) { $('err-invite').textContent = 'Add your name so the group knows who joined.'; $('inv-name').focus(); return; }
+    me.name = name; save(); joinVia = 'link'; join(code);
+  };
+  $('inv-join').onclick = go;
+  $('inv-name').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+}
+
+// ---------- Preferences ----------
+function renderPrefs() {
+  $('hood').innerHTML = Object.keys(hoods).map((h) => `<option>${esc(h)}</option>`).join('');
+  $('name').value = me.name;
+  seg($('budget'), [[1, '$'], [2, '$$'], [3, '$$$'], [4, '$$$$']], me.budget, (v) => { me.budget = v; save(); });
+  seg($('diet'), DIET_OPTS, me.diet, (v) => { me.diet = v; save(); }, true);
+  $('walk').value = me.maxWalkMin; $('temp').value = me.minTempF;
+  $('travel').checked = me.canTravel; $('rain').checked = me.okRain;
+  $('hood').value = hoods[me.hood] ? me.hood : Object.keys(hoods)[0];
+  $('gps').textContent = me.hood === 'My location' ? 'Using your exact location' : 'Use my exact location';
+  labels();
+}
+const labels = () => { $('walkv').textContent = `${$('walk').value} min`; $('tempv').textContent = `${$('temp').value}°F`; };
+$('walk').oninput = () => { me.maxWalkMin = +$('walk').value; labels(); save(); };
+$('temp').oninput = () => { me.minTempF = +$('temp').value; labels(); save(); };
+$('travel').onchange = () => { me.canTravel = $('travel').checked; save(); };
+$('rain').onchange = () => { me.okRain = $('rain').checked; save(); };
+$('name').oninput = () => { me.name = $('name').value.trim(); save(); };
+$('hood').onchange = () => { me.hood = $('hood').value; me.location = hoods[me.hood]; $('gps').textContent = 'Use my exact location'; save(); };
+$('gps').onclick = () => {
+  if (!navigator.geolocation || !window.isSecureContext) { toast('Exact location needs a secure (https) link. Pick a neighborhood for now.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    (p) => { me.location = { lat: p.coords.latitude, lng: p.coords.longitude }; me.hood = 'My location'; $('gps').textContent = 'Using your exact location'; save(); },
+    () => toast('Location is blocked. Pick a neighborhood instead.'));
+};
+$('prefs-done').onclick = () => { save(); toast('Preferences saved'); renderHome(); };
+
+// ---------- Create ----------
+let createOpts = { categories: ['eat', 'drink', 'do'], when: 'now', wmode: 'live' };
+function initCreate() {
+  seg($('cats'), [['eat', '🍜 Eat'], ['drink', '🍸 Drink'], ['do', '🎳 Do'], ['watch', '🍿 Watch'], ['go', '🎟️ Go']],
+    createOpts.categories, (v) => { createOpts.categories = v; $('create').disabled = !v.length; }, true);
+  seg($('when'), [['now', 'Now'], [12.5, 'Lunch 12:30'], [19, 'Dinner 7pm'], [22, 'Late 10pm']], createOpts.when, (v) => (createOpts.when = v));
+  seg($('wmode'), [['live', 'Live forecast'], ['sim', 'Simulate']], createOpts.wmode, (v) => {
+    createOpts.wmode = v; $('wsim').style.display = v === 'sim' ? 'block' : 'none';
+  });
+  const tv = () => ($('simtempv').textContent = `${$('simtemp').value}°F`); tv(); $('simtemp').oninput = tv;
+}
+$('create').onclick = () => {
+  const payload = { profile: me, categories: createOpts.categories };
+  payload.hour = createOpts.when === 'now' ? new Date().getHours() : Math.floor(createOpts.when);
+  payload.meetAt = meetAtFor(createOpts.when);
+  if (createOpts.wmode === 'sim') payload.weatherOverride = { tempF: +$('simtemp').value, raining: $('simrain').checked, source: 'simulated' };
+  socket.emit('create', payload, (res) => {
+    if (!res.ok) return toast(res.error);
+    room = res.code; history.replaceState(null, '', `?room=${room}`); show('s-lobby');
+  });
+};
+
+function join(code) {
+  socket.emit('join', { code, profile: me, via: joinVia }, (res) => {
+    if (!res.ok) {
+      history.replaceState(null, '', '/'); renderHome();
+      $('err-home').textContent = res.error === 'full' ? 'That group is full (12 people).' : "That group code didn't work. It may have expired. Ask for a new link.";
+      return;
+    }
+    room = res.code; history.replaceState(null, '', `?room=${room}`);
+    if (res.status === 'lobby') show('s-lobby');
+  });
+}
+
+// ---------- Lobby ----------
+let lastLobby = null;
+socket.on('lobby', (s) => {
+  lastLobby = s; hostId = s.hostId;
+  $('code').textContent = s.code;
+  const host = s.hostId === me.id, solo = s.members.length < 2;
+  $('members').innerHTML = s.members.map((m) =>
+    `<li><span>${esc(m.name)}${m.id === me.id ? ' (you)' : ''}</span><span class="muted">${m.id === s.hostId ? 'Host' : ''}</span></li>`).join('');
+  // Alone: inviting is the main job. Once someone joins: starting is.
+  $('share').className = host && solo ? 'btn' : 'btn ghost';
+  $('solo-hint').style.display = host && solo ? 'block' : 'none';
+  $('start').style.display = host && !solo && s.status === 'lobby' ? 'block' : 'none';
+  $('start').textContent = `Start swiping with ${s.members.length}`;
+  $('start-solo').parentElement.style.display = host && solo && s.status === 'lobby' ? 'block' : 'none';
+  $('waiting').style.display = host ? 'none' : 'block';
+  renderPeople();
+  renderGroupStatus();
+});
+$('share').onclick = () => share('invite', 'Help pick tonight\'s plan. Tap to join:', appUrl({ room }));
+const start = () => socket.emit('start', {}, (r) => { if (!r.ok) toast(r.error); });
+$('start').onclick = start; $('start-solo').onclick = start;
+
+// ---------- Swipe ----------
+let rulesOpen = false, lastDeckMsg = null;
+const kindTxt = (p) => p.category === 'watch' ? `${cap(p.subtype)} to stream at home` : `${cap(p.subtype)} in ${p.hood}${p.outdoor ? ', outdoors' : ''}`;
+
+socket.on('deck', (d) => {
+  lastDeckMsg = d; deck = d.deck;
+  // Resume after a refresh or late join: skip cards already swiped.
+  const done = d.swiped || {};
+  idx = 0; while (deck[idx] && done[deck[idx].id] !== undefined) idx++;
+  renderRules(); show('s-swipe'); render();
+});
+
+function renderRules() {
+  const d = lastDeckMsg; if (!d) return;
+  const g = d.group, w = d.weather;
+  const all = [
+    ...(d.relaxed || []).map((t) => ({ t, note: true })),
+    // A "Stretched ..." note already states the new limit, so don't repeat it.
+    ...((d.relaxed || []).some((n) => n.includes('budget')) ? [] : [{ t: `Up to ${'$'.repeat(g.budget)}` }]),
+    ...((d.relaxed || []).some((n) => n.includes('walk')) ? [] : [{ t: g.allTravel ? 'Subway OK' : `${g.maxWalkMin} min walk` }]),
+    { t: d.outdoorOk ? `${w.tempF}°F, outdoor OK` : `${w.tempF}°F${w.raining ? ', rain' : ''}, indoors only` },
+    { t: `Open at ${hourTxt(d.hour)}` },
+    ...g.diet.map((x) => ({ t: cap(x) })),
+  ];
+  if (w.source === 'simulated') all.push({ t: 'Simulated weather' });
+  const shown = rulesOpen ? all : all.slice(0, 3);
+  $('rules').innerHTML = shown.map((c) => `<span class="${c.note ? 'note' : ''}">${esc(c.t)}</span>`).join('') +
+    (all.length > 3 ? `<button type="button" id="more-rules" aria-expanded="${rulesOpen}">${rulesOpen ? 'Less' : `+${all.length - 3}`}</button>` : '');
+  const more = $('more-rules'); if (more) more.onclick = () => { rulesOpen = !rulesOpen; renderRules(); };
+}
+
+function card(p, behind) {
+  const el = document.createElement('div');
+  el.className = 'stub' + (behind ? ' behind' : '');
+  const where = p.walkMin != null ? `${p.walkMin} min walk` : 'At home';
+  const hours = p.hours ? `Till ${hourTxt(p.hours.close)}` : 'Anytime';
+  const why = p.hours ? `Open till ${hourTxt(p.hours.close)}${p.walkMin != null ? ` · ${p.walkMin} min walk` : ''}` : 'Watch from anywhere';
+  if (!behind) { el.tabIndex = 0; el.setAttribute('role', 'group'); el.setAttribute('aria-label', `${p.name}. ${kindTxt(p)}. ${priceTxt(p.price)}, ${where}.`); }
+  else el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `
+    <div class="verdict y" aria-hidden="true">IN</div><div class="verdict n" aria-hidden="true">PASS</div>
+    <div class="emoji" aria-hidden="true">${p.emoji}</div>
+    <div class="name">${esc(p.name)}</div>
+    <div class="kind">${esc(kindTxt(p))}</div>
+    <div class="why">${esc(why)}</div>
+    <div class="tear"></div>
+    <div class="facts">
+      <div>${priceTxt(p.price)}<small>Price</small></div>
+      <div>${where}<small>Distance</small></div>
+      <div>★ ${p.rating.toFixed(1)}<small>${hours}</small></div>
+    </div>`;
+  return el;
+}
+
+function render() {
+  const stack = $('stack'); stack.innerHTML = '';
+  const left = deck.length - idx;
+  $('actions').style.display = left > 0 ? 'flex' : 'none';
+  if (!deck.length) {
+    const b = lastDeckMsg && lastDeckMsg.blocker, host = hostId === me.id;
+    stack.innerHTML = `<div class="empty"><h2>Nothing fits everyone</h2>
+      <p class="muted">${b ? esc(b.prompt) : 'Your group\'s limits rule out everything right now.'}</p>
+      ${b && host ? `<button class="btn" id="loosen">${esc(b.action)}</button>` : ''}
+      ${b && !host ? '<p class="muted">Waiting for the host to loosen it.</p>' : ''}
+      <button class="btn ghost" id="back-lobby">Back to home</button></div>`;
+    if ($('loosen')) $('loosen').onclick = () => socket.emit('loosen', { what: b.what }, () => {});
+    $('back-lobby').onclick = () => { history.replaceState(null, '', '/'); room = null; renderHome(); };
+    return;
+  }
+  if (left <= 0) {
+    stack.innerHTML = `<div class="empty"><h2>You're through the deck</h2><p class="muted">Waiting for everyone else to finish.</p></div>`;
+    socket.emit('results');
+    renderPeople();
+    return;
+  }
+  if (deck[idx + 1]) stack.appendChild(card(deck[idx + 1], true));
+  const top = card(deck[idx]); stack.appendChild(top); drag(top);
+  $('live').textContent = `Card ${idx + 1} of ${deck.length}: ${deck[idx].name}`;
+  renderPeople();
+}
+
+// Everyone's progress, so nobody wonders who the group is waiting on.
+function renderPeople() {
+  const s = lastLobby; if (!s || !deck.length) { $('people').innerHTML = ''; return; }
+  $('people').innerHTML = s.members.map((m) => {
+    const n = m.id === me.id ? Math.min(idx, deck.length) : Math.min(m.swiped, deck.length);
+    return `<span><b>${esc(m.id === me.id ? 'You' : m.name)}</b> ${n}/${deck.length}</span>`;
+  }).join('');
+}
+
+function decide(liked) {
+  const p = deck[idx]; if (!p) return;
+  socket.emit('swipe', { placeId: p.id, liked });
+  idx++; render();
+  const top = $('stack').querySelector('.stub:not(.behind)'); if (top) top.focus({ preventScroll: true });
+}
+
+function drag(el) {
+  let x0 = null, dx = 0, gone = false;
+  const yes = el.querySelector('.verdict.y'), no = el.querySelector('.verdict.n');
+  el.addEventListener('pointerdown', (e) => { x0 = e.clientX; dx = 0; el.setPointerCapture(e.pointerId); el.style.transition = 'none'; });
+  el.addEventListener('pointermove', (e) => {
+    if (x0 == null) return;
+    dx = e.clientX - x0;
+    el.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    yes.style.opacity = Math.max(0, dx / 100); no.style.opacity = Math.max(0, -dx / 100);
+  });
+  const end = () => {
+    if (x0 == null || gone) return; x0 = null;
+    const liked = dx > 0; // capture the direction before anything resets it
+    if (Math.abs(dx) > 90) {
+      gone = true;
+      if (reduceMotion) return decide(liked);
+      el.style.transition = 'transform .22s ease';
+      el.style.transform = `translateX(${liked ? 600 : -600}px) rotate(${dx / 8}deg)`;
+      setTimeout(() => decide(liked), 180);
+    } else {
+      el.style.transition = 'transform .2s ease';
+      el.style.transform = ''; yes.style.opacity = 0; no.style.opacity = 0;
+    }
+  };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+$('like').onclick = () => decide(true);
+$('pass').onclick = () => decide(false);
+document.addEventListener('keydown', (e) => {
+  if ($('match').classList.contains('on')) { if (e.key === 'Escape') closeMatch(); return; }
+  if (!$('s-swipe').classList.contains('on')) return;
+  if (e.key === 'ArrowRight') decide(true);
+  if (e.key === 'ArrowLeft') decide(false);
+});
+socket.on('tastes', (t) => { if (t) { me.tastes = t; save(); } });
+
+// ---------- Match ----------
+function openMatch() { $('match').classList.add('on'); $('app').inert = true; $('m-share').focus(); }
+function closeMatch() { $('match').classList.remove('on'); $('app').inert = false; const t = $('stack').querySelector('.stub:not(.behind)'); if (t) t.focus(); }
+socket.on('match', ({ place, yes, of }) => {
+  lastMatch = place;
+  $('m-emoji').textContent = place.emoji; $('m-name').textContent = place.name;
+  const votes = yes && of && yes < of ? ` · ${yes} of ${of} said yes` : '';
+  $('m-meta').textContent = kindTxt(place) + votes;
+  $('m-plan').textContent = myPlan ? planLine(myPlan) : '';
+  openMatch();
+});
+$('m-keep').onclick = closeMatch;
+$('m-share').onclick = () => {
+  const p = lastMatch, when = myPlan ? ` at ${clock(myPlan.meetAt)}` : '';
+  share('plan', `We're going to ${p.name}${when} 🎟️ Decided on Plansy:`, appUrl({ ref: 'plan' }));
+};
+$('p-dir').onclick = () => { if (lastMatch && lastMatch.lat != null) window.open(mapsUrl(lastMatch), '_blank'); };
+
+
+// ---------- On time: personal plan, calendar invite, assistant hand-off, status ----------
+let myPlan = null;
+const howTxt = (p) => p.mode === 'home' ? 'Watch from home' : `${p.travelMin} min ${p.mode === 'transit' ? 'by subway' : 'walk'}${p.from ? ` from ${p.from}` : ''}`;
+const planLine = (p) => p.mode === 'home' ? `Starts ${clock(p.meetAt)}` : `Meet ${clock(p.meetAt)} · You leave by ${clock(p.leaveBy)} (${howTxt(p)})`;
+
+socket.on('plan', (p) => {
+  myPlan = p;
+  if ($('match').classList.contains('on')) $('m-plan').textContent = planLine(p);
+  if ($('s-results').classList.contains('on')) renderPlan();
+});
+
+function renderPlan() {
+  if (!myPlan || !lastMatch) { $('plan').style.display = 'none'; return; }
+  const p = myPlan;
+  $('plan').style.display = 'block';
+  $('p-meet').textContent = clock(p.meetAt);
+  $('p-leave').textContent = p.mode === 'home' ? '—' : clock(p.leaveBy);
+  $('p-how').textContent = p.mode === 'home' ? 'Watch from home' : `Leave by · ${howTxt(p)}`;
+  $('p-dir').style.display = lastMatch.lat != null ? 'block' : 'none';
+  $('p-now').style.display = p.mode !== 'home' && Date.now() >= Date.parse(p.leaveBy) ? 'block' : 'none';
+  renderGroupStatus();
+}
+
+function renderGroupStatus() {
+  const s = lastLobby; if (!s || !$('group-status')) return;
+  const mine = (s.members.find((m) => m.id === me.id) || {}).status;
+  document.querySelectorAll('[data-status]').forEach((b) => b.setAttribute('aria-pressed', !!mine && mine.state === b.dataset.status));
+  $('group-status').innerHTML = s.members.map((m) =>
+    `<li><span>${esc(m.id === me.id ? 'You' : m.name)}</span><span class="muted">${m.status ? esc(m.status.label) : 'No update yet'}</span></li>`).join('');
+}
+document.querySelectorAll('[data-status]').forEach((b) => (b.onclick = () => socket.emit('status', { state: b.dataset.status })));
+
+function others() { return (lastLobby ? lastLobby.members : []).filter((m) => m.id !== me.id).map((m) => m.name); }
+function mapsUrl(place) { return place.lat != null ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}&travelmode=${myPlan && myPlan.mode === 'transit' ? 'transit' : 'walking'}` : ''; }
+
+// Plain-language note any calendar- or inbox-reading assistant can act on.
+function planNote() {
+  const p = myPlan, place = lastMatch, who = others();
+  const lines = [
+    `Plansy plan${who.length ? ` with ${who.join(', ')}` : ''}.`,
+    p.mode === 'home' ? `Starts: ${clock(p.meetAt)} — ${place.name} (streaming).` : `Meet: ${clock(p.meetAt)} at ${place.name} (${place.hood}).`,
+  ];
+  if (p.mode !== 'home') {
+    lines.push(`Leave by: ${clock(p.leaveBy)} — about ${howTxt(p)}.`);
+    lines.push(`Note for my assistant: remind me at ${clock(p.nudgeAt)} to start heading out, and again at ${clock(p.leaveBy)} if I haven't left. If I'm running late, remind me to tap "Running late" in Plansy so the group knows.`);
+    lines.push(`Directions: ${mapsUrl(place)}`);
+  }
+  lines.push(`Group: ${appUrl({ room })}`);
+  return lines.join('\n');
+}
+
+const icsEsc = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+const icsTime = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+// Fold lines at 75 octets as the calendar spec requires.
+function fold(line) {
+  const bytes = new TextEncoder().encode(line);
+  if (bytes.length <= 75) return line;
+  const out = []; let cur = '', len = 0;
+  for (const ch of line) {
+    const n = new TextEncoder().encode(ch).length;
+    if (len + n > (out.length ? 74 : 75)) { out.push(cur); cur = ''; len = 0; }
+    cur += ch; len += n;
+  }
+  out.push(cur);
+  return out.join('\r\n ');
+}
+function buildIcs() {
+  const p = myPlan, place = lastMatch;
+  const start = p.meetAt, end = new Date(Date.parse(p.meetAt) + 90 * 60e3).toISOString();
+  const lead = Math.max(0, Math.round((Date.parse(p.meetAt) - Date.parse(p.nudgeAt)) / 60e3));
+  const leaveLead = Math.max(0, Math.round((Date.parse(p.meetAt) - Date.parse(p.leaveBy)) / 60e3));
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Plansy//Plan//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:plansy-${room}-${me.id}@plansy.app`,
+    `DTSTAMP:${icsTime(new Date().toISOString())}`,
+    `DTSTART:${icsTime(start)}`, `DTEND:${icsTime(end)}`,
+    `SUMMARY:${icsEsc(`${lastMatch.emoji} ${place.name} with ${others().join(', ') || 'the group'}`)}`,
+    `LOCATION:${icsEsc(place.lat != null ? `${place.name}, ${place.hood}, New York, NY` : 'Streaming at home')}`,
+    ...(place.lat != null ? [`GEO:${place.lat};${place.lng}`] : []),
+    `DESCRIPTION:${icsEsc(planNote())}`,
+    `URL:${appUrl({ room })}`,
+  ];
+  if (p.mode !== 'home') {
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(`Get ready: leave by ${clock(p.leaveBy)} for ${place.name}`)}`, `TRIGGER:-PT${lead}M`, 'END:VALARM');
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(`Leave now for ${place.name}`)}`, `TRIGGER:-PT${leaveLead}M`, 'END:VALARM');
+  } else {
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEsc(`${place.name} starts soon`)}`, 'TRIGGER:-PT10M', 'END:VALARM');
+  }
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  return lines.map(fold).join('\r\n') + '\r\n';
+}
+const icsFile = () => new File([buildIcs()], 'plansy-plan.ics', { type: 'text/calendar' });
+
+$('p-ics').onclick = () => {
+  socket.emit('shared', { kind: 'calendar' });
+  const url = URL.createObjectURL(icsFile());
+  const a = document.createElement('a'); a.href = url; a.download = 'plansy-plan.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast('Calendar invite downloaded. Open it to add the plan and both reminders.');
+};
+$('p-gcal').onclick = () => {
+  socket.emit('shared', { kind: 'calendar' });
+  const p = myPlan, place = lastMatch;
+  const q = new URLSearchParams({
+    action: 'TEMPLATE', text: `${place.name} with ${others().join(', ') || 'the group'}`,
+    dates: `${icsTime(p.meetAt)}/${icsTime(new Date(Date.parse(p.meetAt) + 90 * 60e3).toISOString())}`,
+    details: planNote(), location: place.lat != null ? `${place.name}, ${place.hood}, New York, NY` : '',
+  });
+  window.open(`https://calendar.google.com/calendar/render?${q}`, '_blank');
+};
+// Hand the plan to whatever assistant app is installed (Claude, Muse, ...) via the phone's share sheet.
+$('p-assistant').onclick = async () => {
+  socket.emit('shared', { kind: 'assistant' });
+  const text = `Please help me get to this on time.\n\n${planNote()}`;
+  const file = icsFile();
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ title: 'My Plansy plan', text, files: [file] }); return; }
+    if (navigator.share) { await navigator.share({ title: 'My Plansy plan', text }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  toast('Sharing needs a secure (https) link. Use "Email it to me" or the calendar invite instead.');
+};
+$('p-email').onclick = () => {
+  socket.emit('shared', { kind: 'assistant' });
+  const subject = `Plansy: ${lastMatch.name} at ${clock(myPlan.meetAt)}`;
+  location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(planNote())}`;
+};
+
+// ---------- Results ----------
+socket.on('results', (r) => {
+  if (deck.length - idx > 0 && !r.match) return; // no match yet: wait until this person is done
+  $('res-title').textContent = r.match ? `You're going to ${r.match.name}` : 'No match this round';
+  $('res-sub').textContent = r.match ? 'Here is how everything stacked up.' : 'These had the most yeses. Pick one, or plan another round.';
+  $('rank').innerHTML = r.ranking.map((x) =>
+    `<li><span class="e" aria-hidden="true">${x.place.emoji}</span><span><b>${esc(x.place.name)}</b><span class="muted">${x.likes} of ${x.of} in · ${priceTxt(x.place.price)}</span></span></li>`).join('')
+    || '<li class="muted">Nobody said yes this round.</li>';
+  if (r.match) lastMatch = r.match;
+  renderPlan();
+  const v = r.vibes.find((x) => x.id === me.id);
+  myTicket = v && v.card;
+  $('ticket').style.display = myTicket ? 'block' : 'none';
+  if (myTicket) {
+    $('t-name').textContent = myTicket.name;
+    $('t-price').textContent = myTicket.price;
+    $('t-likes').textContent = myTicket.likes.map(cap).join(', ');
+    $('t-reach').textContent = cap(myTicket.reach);
+  }
+  show('s-results');
+});
+$('share-ticket').onclick = () => share('ticket', `${myTicket.text}. What's yours?`, appUrl({ ref: 'ticket' }));
+$('again').onclick = () => { history.replaceState(null, '', '/'); room = null; deck = []; myPlan = null; renderHome(); };
+
+// ---------- Boot ----------
+(async () => {
+  try { hoods = await fetch('/api/hoods').then((r) => r.json()); } catch { hoods = {}; }
+  if (!me.location) me.location = hoods[me.hood] || Object.values(hoods)[0] || null;
+  save();
+  const code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
+  if (code) {
+    if (me.name) { joinVia = 'link'; return join(code); }
+    return renderInvite(code);
+  }
+  renderHome();
+})();
+socket.on('connect', () => { if (room && me.name) socket.emit('join', { code: room, profile: me }, () => {}); });
+</script>
+</body>
+</html>
